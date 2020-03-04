@@ -6,7 +6,7 @@ import settings
 
 class Clock:
 
-    def init(self, add_loop):
+    def init(self, add_loop, rmv_loop):
         add_loop(2, self.display_clock)
 
     def service(self, add_event):

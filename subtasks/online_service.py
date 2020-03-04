@@ -6,7 +6,7 @@ import ping3
 
 class OnlineService:
 
-    def init(self, add_loop):
+    def init(self, add_loop, rmv_loop):
         add_loop(4, self.display_ping_test)
 
     def service(self, add_event):
