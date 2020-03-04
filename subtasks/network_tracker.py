@@ -33,13 +33,13 @@ class NetworkTracker:
                 ip = "192.168.0.{0}".format(n)
                 result = self.ping(ip, 1)
                 if result == 1:  # inactive
-                    if ip in self.active_devices:
+                    if n in self.active_devices:
                         if self.ping(ip, 3) == 3:
                             self.active_devices.pop(n)
                             self.old_devices.put(ip)
                             add_event(2, self.display_old)
                 else:  # active
-                    if ip not in self.active_devices:
+                    if n not in self.active_devices:
                         if self.ping(ip, 3) == 0:
                             self.active_devices[n] = time.perf_counter()
                             self.new_devices.put(ip)
