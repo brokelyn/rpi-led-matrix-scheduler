@@ -10,27 +10,21 @@ class DeviceTracker:
 
     def __init__(self):
         self.new_devices = queue.Queue()
-        self.sched_new_devices = queue.Queue()
         self.old_devices = queue.Queue()
-        self.sched_old_devices = queue.Queue()
         self.active_devices = list()
 
-    def ping(self, n):  # todo locks
-        ip = "192.168.0.{0}".format(n)
-        try:
-            result = ping3.ping(ip, unit="ms", timeout=1, size=2)
-        except:
-            result = False
-        if not result:  # inactive
-            if ip in self.active_devices:
-                self.active_devices.remove(ip)
-                self.old_devices.put(ip)
-                self.sched_old_devices.put(ip)
-        else:  # active
-            if ip not in self.active_devices:
-                self.active_devices.append(ip)
-                self.new_devices.put(ip)
-                self.sched_new_devices.put(ip)
+    def ping(self, ip, n):
+        counter = 0
+        for i in range(n):
+            try:
+                result = ping3.ping(ip, unit="ms", timeout=1, size=2)
+            except:
+                counter += 1
+            if not result:  # inactive
+                counter += 1
+        if counter == 0:
+            return True
+        return False
 
     def init(self, add_loop):
         add_loop(4, self.display_connected)
@@ -38,15 +32,21 @@ class DeviceTracker:
     def service(self, add_event):
         while True:
             for n in range(1, 255):
-                threading.Thread(target=self.ping, args=(n, )).start()
-                time.sleep(0.1)
+                ip = "192.168.0.{0}".format(n)
+                result = self.ping(ip, 1)
+                if not result:  # inactive
+                    if ip in self.active_devices:
+                        if not self.ping(ip, 3):
+                            self.active_devices.remove(ip)
+                            self.old_devices.put(ip)
+                            add_event(2, self.display_old)
+                else:  # active
+                    if ip not in self.active_devices:
+                        if self.ping(ip, 3):
+                            self.active_devices.append(ip)
+                            self.new_devices.put(ip)
+                            add_event(2, self.display_new)
 
-            while not self.sched_new_devices.empty():
-                self.sched_new_devices.get()
-                add_event(2, self.display_new)
-            while not self.sched_old_devices.empty():
-                self.sched_old_devices.get()
-                add_event(2, self.display_old)
             time.sleep(120)
 
     def display_connected(self, matrix):
