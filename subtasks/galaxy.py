@@ -1,5 +1,6 @@
 import math
 import time
+import random as rnd
 from rgbmatrix import graphics
 
 
@@ -59,44 +60,49 @@ def compute_gravity_step(bodies, time_step = 1):
     update_location(bodies, time_step = time_step)
 
 
+def rnd_point(minx, maxx, miny, maxy):
+    return point(rnd.random() * (maxx - minx) + minx, rnd.random() * (maxy - miny) + miny)
+
+
 class Galaxy:
 
     def init(self, add_loop):
-        add_loop(3, self.display_galaxy)
+        add_loop(3.3, self.display_galaxy)
 
     def service(self, add_event):
         pass
 
     def display_galaxy(self, matrix):
         swap = matrix.CreateFrameCanvas()
+        body_mass = rnd.random()
+        sun_mass = rnd.random() * 2 + 1
 
         # build list of planets in the simulation, or create your own
         bodies = [
-            body(location=point(32, 10), mass=1, velocity=point(0.1, 0), name="blue",
+            body(location=point(32, 10), mass=body_mass, velocity=rnd_point(0, 0.1, 0, 0.1), name="blue",
                  color=graphics.Color(0, 0, 255)),
-            body(location=point(25, 15), mass=1, velocity=point(0.1, 0), name="green",
+            body(location=point(25, 15), mass=body_mass, velocity=rnd_point(0, 0.1, 0, 0.1), name="green",
                  color=graphics.Color(0, 255, 0)),
-            body(location=point(10, 15), mass=1, velocity=point(0.1, 0), name="red",
+            body(location=point(10, 15), mass=body_mass, velocity=rnd_point(0, 0.1, 0, 0.1), name="red",
                  color=graphics.Color(255, 0, 0)),
-            body(location=point(55, 15), mass=2, velocity=point(0.1, 0), name="purple",
+            body(location=point(55, 15), mass=body_mass, velocity=rnd_point(0, 0.1, 0, 0.1), name="purple",
                  color=graphics.Color(177, 52, 235)),
-            body(location=point(10, 25), mass=2, velocity=point(0.1, 0), name="orange",
+            body(location=point(10, 25), mass=body_mass, velocity=rnd_point(0, 0.1, 0, 0.1), name="orange",
                  color=graphics.Color(235, 159, 52)),
-            body(location=point(16, 16), mass=5, velocity=point(-0.1, 0), name="sun1",
+            body(location=point(44, 8), mass=sun_mass, velocity=point(0, 0), name="sun1",
                  color=graphics.Color(255, 170, 0), is_fix=True),
-            body(location=point(48, 16), mass=5, velocity=point(-0.1, 0), name="sun2",
+            body(location=point(20, 8), mass=sun_mass, velocity=point(0, 0), name="sun2",
                  color=graphics.Color(255, 170, 0), is_fix=True),
-            body(location=point(32, 16), mass=2, velocity=point(-0.1, 0), name="sun2",
+            body(location=point(31, 24), mass=sun_mass, velocity=point(0, 0), name="sun3",
                  color=graphics.Color(255, 170, 0), is_fix=True)
 
         ]
 
-        for i in range(1200):
+        for i in range(800):
             compute_gravity_step(bodies, time_step=1)
             swap.Clear()
 
             for obj in bodies:
-                #print(obj.name + "     " + str(obj.velocity.x) + "   " + str(obj.velocity.y))
                 swap.SetPixel(obj.location.x, obj.location.y, obj.color.red, obj.color.green, obj.color.blue)
                 for i, his in enumerate(reversed(obj.his)):
                     reduce_step = 255 / len(obj.his)
@@ -104,7 +110,6 @@ class Galaxy:
                     g = max(0, obj.color.green - (i * reduce_step))
                     b = max(0, obj.color.blue - (i * reduce_step))
                     swap.SetPixel(his.x, his.y, r, g, b)
-
 
             matrix.SwapOnVSync(swap)
             time.sleep(0.01)
