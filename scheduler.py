@@ -5,6 +5,7 @@ import threading
 import inspect
 import sys
 import types
+import random
 from subtasks import *
 from q_object import QObject
 
@@ -14,7 +15,6 @@ class Scheduler:
     def __init__(self):
         self.loop_q = queue.PriorityQueue()
         self.event_q = queue.PriorityQueue()
-        self.event_id = 1
 
         self.submodules = Scheduler.load_submodules()
         self.init_submodules()
@@ -25,10 +25,6 @@ class Scheduler:
         self.matrix = init_leds()
 
         self.schedule()
-
-    def get_id(self):
-        self.event_id += 1
-        return self.event_id
 
     def schedule(self):
         while True:
@@ -43,9 +39,11 @@ class Scheduler:
             for obj in self.loop_q.queue:
                 obj.adjust_prio()
             loop = self.loop_q.get()
-            print("Next: " + str(loop.call_fnc))
-            self.run_module(loop.get_fnc())
+            fnc = loop.get_fnc()
             self.loop_q.put(loop)
+
+            print("Next: " + str(loop.call_fnc))
+            self.run_module(fnc)
 
     def run_module(self, fnc):
         thread = threading.Thread(target=fnc, args=(self.matrix, ))
@@ -65,7 +63,7 @@ class Scheduler:
     def init_submodules(self):
         for mod in self.submodules:
             try:
-                mod.init(self.add_loop)
+                mod.init(self.add_loop, self.rmv_loop)
             except AttributeError:
                 print("Could not load: " + str(mod) + ". Missing 'init' method", file=sys.stderr)
 
@@ -80,13 +78,24 @@ class Scheduler:
                 print("Module: " + str(mod) + " has no 'service' method.", file=sys.stderr)
         return services
 
-    def add_event(self, priority, display_fnc):  # todo return id
-        qObj = QObject(priority, self.get_id(), display_fnc)
+    def add_event(self, priority, display_fnc):
+        id = random.getrandbits(128)
+        qObj = QObject(priority, id, display_fnc)
         self.event_q.put(qObj)
+        return id
 
     def add_loop(self, priority, display_fnc):
-        qObj = QObject(priority, self.get_id(), display_fnc)
+        id = random.getrandbits(128)
+        qObj = QObject(priority, id, display_fnc)
         self.loop_q.put(qObj)
+        return id
+
+    def rmv_loop(self, id):
+        for obj in self.loop_q.queue:
+            if obj.id == id:
+                self.loop_q.queue.remove(obj)
+                return
+        raise Exception("Cant find ID for loop function!")
 
 
 Scheduler()

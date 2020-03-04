@@ -20,4 +20,4 @@ class QObject:
             return False
 
     def adjust_prio(self):
-        self.curr_prio = max(1, self.curr_prio - 0.2)
+        self.curr_prio = max(1.1, self.curr_prio - 0.2)
