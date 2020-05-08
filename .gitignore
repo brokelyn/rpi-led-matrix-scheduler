@@ -120,3 +120,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# OS Stuff
+._.DS_Store
