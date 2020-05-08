@@ -13,7 +13,7 @@ def init_leds():
     options.row_address_type = 0
     options.multiplexing = 0
     options.pwm_bits = 11
-    options.brightness = 75
+    options.brightness = 50
     options.pwm_lsb_nanoseconds = 120
     options.led_rgb_sequence = 'RGB'
     options.pixel_mapper_config = ''
