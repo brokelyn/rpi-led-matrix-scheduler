@@ -1,6 +1,7 @@
 # private files
 config.py
 test.py
+.DS_Store
 
 # idea Pycharm
 

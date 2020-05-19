@@ -25,7 +25,7 @@ class NetworkTracker:
         return counter
 
     def init(self, add_loop, rmv_loop):
-        add_loop(4, self.display_connected)
+        add_loop(4.3, self.display_connected)
 
     def service(self, add_event):
         while True:
@@ -45,7 +45,7 @@ class NetworkTracker:
                             self.new_devices.put(ip)
                             add_event(2, self.display_new)
 
-            time.sleep(120)
+            time.sleep(180)
 
     def display_connected(self, matrix):
         swap = matrix.CreateFrameCanvas()

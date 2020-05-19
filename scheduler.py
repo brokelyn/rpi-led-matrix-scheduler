@@ -9,8 +9,6 @@ import random
 from subtasks import *
 from q_object import QObject
 
-sys.stdout = open('output.txt', 'w')
-
 
 class Scheduler:
 

@@ -67,7 +67,7 @@ def rnd_point(minx, maxx, miny, maxy):
 class Galaxy:
 
     def init(self, add_loop, rmv_loop):
-        add_loop(3.3, self.display_galaxy)
+        add_loop(4, self.display_galaxy)
 
     def service(self, add_event):
         pass
