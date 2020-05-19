@@ -51,7 +51,7 @@ class StandbyService:
         swap = matrix.CreateFrameCanvas()
         swap.Clear()
         matrix.SwapOnVSync(swap)
-        time.sleep(5)
+        time.sleep(15)
 
     def welcome(self, matrix):
         swap = matrix.CreateFrameCanvas()
@@ -64,10 +64,10 @@ class StandbyService:
 
         graphics.DrawText(swap, font, 10, font.baseline - 2, text_color, "Welcome")
         graphics.DrawText(swap, font, 20, font.baseline + 8, text_color, "back")
-        graphics.DrawText(swap, font, 2, font.baseline + 19, text_color, "Was gehtn?")
+        graphics.DrawText(swap, font, 2, font.baseline + 19, text_color, "Was sgdn?")
 
         matrix.SwapOnVSync(swap)
-        time.sleep(5)
+        time.sleep(5.5)
 
     def goodbye(self, matrix):
         swap = matrix.CreateFrameCanvas()
@@ -83,4 +83,4 @@ class StandbyService:
         graphics.DrawText(swap, font, 15, font.baseline + 21, text_color, "Later!")
 
         matrix.SwapOnVSync(swap)
-        time.sleep(4)
+        time.sleep(5)

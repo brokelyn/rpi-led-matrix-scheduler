@@ -55,7 +55,7 @@ class OnlineService:
         matrix.SwapOnVSync(swap)
         time.sleep(1)
 
-        result = ping3.ping("8.8.8.8", unit="ms", timeout=2, size=2)
+        result = ping3.ping("8.8.8.8", unit="ms", timeout=3, size=2)
         if not result or result is None:
             OnlineService.draw_cross(swap, 55, 18)
         else:
