@@ -25,7 +25,7 @@ class NetworkTracker:
         return counter
 
     def init(self, add_loop, rmv_loop):
-        add_loop(4.3, self.display_connected)
+        add_loop(4.5, self.display_connected)
 
     def service(self, add_event):
         while True:
@@ -61,8 +61,13 @@ class NetworkTracker:
         graphics.DrawText(swap, font, 0, font.baseline, text_color, "Network:")
 
         for ip in collections.OrderedDict(sorted(self.active_devices.items())):
-            online_duration = int((time.perf_counter() - self.active_devices[ip]) / 60)
-            text = str(ip) + " " * (3 - len(str(ip))) + " up " + str(online_duration) + "min"
+            online_min = int((time.perf_counter() - self.active_devices[ip]) / 60)
+            if online_min > 59:
+                online_hours = int(online_min / 60)
+                online_min = int(((online_min % 60) / 60) * 10)
+                text = str(ip) + " " * (3 - len(str(ip))) + " up " + str(online_hours) + "." + str(online_min) + "h"
+            else:
+                text = str(ip) + " " * (3 - len(str(ip))) + " up " + str(online_min) + "min"
             graphics.DrawText(swap, font, 0, font.baseline + ((line + 1) * 8), ip_color, text)
             line += 1
 
@@ -76,13 +81,18 @@ class NetworkTracker:
                 line = 0
 
                 for ip in collections.OrderedDict(sorted(self.active_devices.items())):
-                    online_duration = int((time.perf_counter() - self.active_devices[ip]) / 60)
-                    text = str(ip) + " " * (3 - len(str(ip))) + " up " + str(online_duration) + "min"
+                    online_min = int((time.perf_counter() - self.active_devices[ip]) / 60)
+                    if online_min > 59:
+                        online_hours = int(online_min / 60)
+                        online_min = int(((online_min % 60) / 60) * 10)
+                        text = str(ip) + " " * (3 - len(str(ip))) + " up " + str(online_hours) + "." + str(online_min) + "h"
+                    else:
+                        text = str(ip) + " " * (3 - len(str(ip))) + " up " + str(online_min) + "min"
                     graphics.DrawText(swap, font, 0, font.baseline + ((line + 1) * 8) - r, ip_color, text)
                     line += 1
 
                 matrix.SwapOnVSync(swap)
-                time.sleep(0.2)
+                time.sleep(0.15)
 
         time.sleep(3)
 
