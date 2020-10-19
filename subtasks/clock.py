@@ -17,18 +17,17 @@ class Clock:
 
         font = graphics.Font()
         font.LoadFont(settings.FONT_PATH + "6x13B.bdf")
-        text_color = graphics.Color(130, 0, 190)
 
         for i in range(8):
-            time_text1 = datetime.now().strftime("%j %b %y")
-            time_text2 = datetime.now().strftime("%A")
-            time_text3 = datetime.now().strftime("%H %M %S")
+            time_text1 = datetime.now().strftime("%a %d %b")
+            time_text2 = datetime.now().strftime(" Day %j")
+            time_text3 = datetime.now().strftime(" %H %M %S")
 
             swap.Clear()
 
-            graphics.DrawText(swap, font, 0,  font.baseline - 2, text_color, time_text1)
-            graphics.DrawText(swap, font, 0, font.baseline + 9, text_color, time_text2)
-            graphics.DrawText(swap, font, 0, font.baseline + 21, text_color, time_text3)
+            graphics.DrawText(swap, font, 2,  font.baseline - 2, graphics.Color(120, 0, 190), time_text1)
+            graphics.DrawText(swap, font, 4, font.baseline + 9, graphics.Color(80, 0, 130), time_text2)
+            graphics.DrawText(swap, font, 2, font.baseline + 21, graphics.Color(120, 0, 190), time_text3)
 
             swap = matrix.SwapOnVSync(swap)
             time.sleep(1)

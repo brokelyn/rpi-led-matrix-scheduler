@@ -167,7 +167,7 @@ class Boids:
         for _ in range(25):
             bodies.append(body(rnd_point(1, 63, 1, 31), rnd_point(-1, 0, -1, 0)))
 
-        for i in range(5000):
+        for i in range(500):
             compute_step(bodies)
             swap.Clear()
 

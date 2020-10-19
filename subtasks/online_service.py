@@ -37,7 +37,7 @@ class OnlineService:
         green = graphics.Color(0, 200, )
         yellow = graphics.Color(200, 140, 0)
 
-        graphics.DrawText(swap, font, 0, font.baseline, header_color, "Online State:")
+        graphics.DrawText(swap, font, 0, font.baseline, header_color, "Services:")
         graphics.DrawText(swap, font, 0, font.baseline + 9, text_color, "Router:")
         graphics.DrawText(swap, font, 0, font.baseline + 17, text_color, "google:")
         graphics.DrawText(swap, font, 0, font.baseline + 24, text_color, "ping ms:")
