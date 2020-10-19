@@ -1,4 +1,9 @@
-#sys.path.append(os.path.abspath(os.path.dirname(__file__) + '/..'))
+import os
+import sys
+import settings
+
+sys.path.append(os.path.abspath(settings.LED_LIBRARY))
+
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 
 
