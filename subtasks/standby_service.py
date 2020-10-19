@@ -34,18 +34,18 @@ class StandbyService:
                     self.rmv_fnc(self.fnc_id)
                     add_event(1, self.welcome)
                 while True:
-                    if self.ping("192.168.0.241", 5) == 5:
+                    if self.ping("192.168.0.88", 5) == 5:
                         self.online = False
                         break
-                    time.sleep(30)
+                    time.sleep(40)
             else:
                 add_event(1, self.goodbye)
                 self.fnc_id = self.add_fnc(1, self.standby)
                 while True:
-                    if self.ping("192.168.0.241", 5) == 0:
+                    if self.ping("192.168.0.88", 3) == 0:
                         self.online = True
                         break
-                    time.sleep(30)
+                    time.sleep(50)
 
     def standby(self, matrix):
         swap = matrix.CreateFrameCanvas()
