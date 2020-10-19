@@ -1,9 +1,9 @@
 import time
 from rgbmatrix import graphics
 import queue
-import ping3
 import collections
 import settings
+import subprocess
 
 
 class NetworkTracker:
@@ -13,83 +13,111 @@ class NetworkTracker:
         self.old_devices = queue.Queue()
         self.active_devices = {}
 
-    def ping(self, ip, n):
-        counter = 0
-        for i in range(n):
-            try:
-                result = ping3.ping(ip, unit="ms", timeout=1, size=2)
-            except:
-                counter += 1
-            if not result:  # inactive
-                counter += 1
-        return counter
+    @staticmethod
+    def discover_network():
+        cmd = ['sudo', 'nmap', '-sP', '--system-dns', '192.168.0.1/24']
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output, error = proc.communicate()
+
+        if error.decode('utf-8') != '':
+            print("ERROR: " + error.decode('utf-8'))
+            return
+
+        str_output = output.decode("utf-8")
+        lines = str_output.splitlines()
+        discovery = lines[1:]
+        devices = {}
+
+        for i in range(0, len(discovery), 3):
+            hostname = discovery[i].split(' ')[4]
+
+            if '192.168.0.' not in hostname:
+                ip = discovery[i].split('(')[1]
+                ip = ip.split(')')[0]
+            else:
+                ip = hostname
+                hostname = 'Unknown'
+
+            manufacturer = discovery[i + 2].split('(')[1]
+            manufacturer = manufacturer.split(')')[0]
+
+            if hostname == 'Unknown':
+                devices[ip] = manufacturer
+            else:
+                devices[ip] = hostname.replace('.pihole', '')
+
+        return devices
 
     def init(self, add_loop, rmv_loop):
         add_loop(4.5, self.display_connected)
 
     def service(self, add_event):
         while True:
-            for n in range(1, 255):
-                ip = "192.168.0.{0}".format(n)
-                result = self.ping(ip, 1)
-                if result == 1:  # inactive
-                    if n in self.active_devices:
-                        if self.ping(ip, 3) == 3:
-                            self.active_devices.pop(n)
-                            self.old_devices.put(ip)
-                            add_event(2, self.display_old)
-                else:  # active
-                    if n not in self.active_devices:
-                        if self.ping(ip, 3) == 0:
-                            self.active_devices[n] = time.perf_counter()
-                            self.new_devices.put(ip)
-                            add_event(2, self.display_new)
+            average_devices = {}
+            for r in range(2):
+                devices = NetworkTracker.discover_network()
+                average_devices = {**average_devices, **devices}
+                print(average_devices)
+                print()
 
-            time.sleep(180)
+                time.sleep(2)
+
+            for key in self.active_devices.keys():  # offline since last check
+                if key not in average_devices.keys():
+                    self.old_devices.put([key, self.active_devices[key]])
+                    self.active_devices.pop(key)
+                    add_event(2, self.display_old)
+
+            for key in average_devices.keys():  # online since last check                print("key " + key + " in average keys")
+                if key not in self.active_devices.keys():
+                    self.active_devices[key] = [average_devices[key], time.perf_counter()]
+                    self.new_devices.put([key, average_devices[key]])
+                    add_event(2, self.display_new)
+
+            time.sleep(120)
 
     def display_connected(self, matrix):
         swap = matrix.CreateFrameCanvas()
 
-        font = graphics.Font()
-        font.LoadFont(settings.FONT_PATH + "5x8.bdf")
-        ip_color = graphics.Color(0, 150, 0)
+        font1 = graphics.Font()
+        font1.LoadFont(settings.FONT_PATH + "5x8.bdf")
+        font2 = graphics.Font()
+        font2.LoadFont(settings.FONT_PATH + "4x6.bdf")
+
+        device_color = graphics.Color(0, 150, 0)
+        up_color = graphics.Color(125, 0, 125)
         text_color = graphics.Color(0, 150, 120)
 
-        swap.Clear()
-        line = 0
+        def draw_devices(offset):
+            swap.Clear()
+            line = 0
 
-        graphics.DrawText(swap, font, 0, font.baseline, text_color, "Network:")
+            graphics.DrawText(swap, font1, 13, font1.baseline - offset, text_color, "Network")
 
-        for ip in collections.OrderedDict(sorted(self.active_devices.items())):
-            online_min = int((time.perf_counter() - self.active_devices[ip]) / 60)
-            if online_min > 59:
-                online_hours = int(online_min / 60)
-                online_min = int(((online_min % 60) / 60) * 10)
-                text = str(ip) + " " * (3 - len(str(ip))) + " up " + str(online_hours) + "." + str(online_min) + "h"
-            else:
-                text = str(ip) + " " * (3 - len(str(ip))) + " up " + str(online_min) + "min"
-            graphics.DrawText(swap, font, 0, font.baseline + ((line + 1) * 8), ip_color, text)
-            line += 1
+            for ip in collections.OrderedDict(sorted(self.active_devices.items())):
+                device = self.active_devices[ip]
+                online_min = int((time.perf_counter() - device[1]) / 60)
+                y_position = font2.baseline + ((line + 1) * 7) - offset + 2
 
+                graphics.DrawText(swap, font2, 0, y_position, device_color, device[0][:11])
+
+                if online_min > 59:
+                    online_hours = int(online_min / 60)
+                    online_min = int(((online_min % 60) / 60) * 10)
+                    up_text = str(online_hours) + "." + str(online_min) + "h"
+                else:
+                    up_text = str(online_min) + "m"
+
+                graphics.DrawText(swap, font2, 52, y_position, up_color, up_text)
+                line += 1
+
+        draw_devices(0)
         matrix.SwapOnVSync(swap)
         time.sleep(3)
 
-        if len(self.active_devices) > 3:
-            for r in range((len(self.active_devices) - 3) * 8 + 1):
-                matrix.Clear()
-                graphics.DrawText(swap, font, 0, font.baseline - r, text_color, "Network:")
-                line = 0
-
-                for ip in collections.OrderedDict(sorted(self.active_devices.items())):
-                    online_min = int((time.perf_counter() - self.active_devices[ip]) / 60)
-                    if online_min > 59:
-                        online_hours = int(online_min / 60)
-                        online_min = int(((online_min % 60) / 60) * 10)
-                        text = str(ip) + " " * (3 - len(str(ip))) + " up " + str(online_hours) + "." + str(online_min) + "h"
-                    else:
-                        text = str(ip) + " " * (3 - len(str(ip))) + " up " + str(online_min) + "min"
-                    graphics.DrawText(swap, font, 0, font.baseline + ((line + 1) * 8) - r, ip_color, text)
-                    line += 1
+        if len(self.active_devices) > 4:
+            for r in range((len(self.active_devices) - 4) * 6 + 1):
+                draw_devices(r)
 
                 matrix.SwapOnVSync(swap)
                 time.sleep(0.15)
@@ -99,16 +127,19 @@ class NetworkTracker:
     def display_new(self, matrix):
         swap = matrix.CreateFrameCanvas()
 
-        font = graphics.Font()
-        font.LoadFont(settings.FONT_PATH + "5x8.bdf")
-        text_color = graphics.Color(0, 150, 75)
-        ip_color = graphics.Color(0, 250, 0)
+        font1 = graphics.Font()
+        font1.LoadFont(settings.FONT_PATH + "5x8.bdf")
+
+        text_color = graphics.Color(0, 150, 0)
+        ip_color = graphics.Color(125, 0, 200)
 
         swap.Clear()
 
-        graphics.DrawText(swap, font, 0, font.baseline, text_color, "New Device")
-        graphics.DrawText(swap, font, 0, font.baseline + 9, text_color, "Connected")
-        graphics.DrawText(swap, font, 0, font.baseline + 21, ip_color, self.new_devices.get())
+        device = self.new_devices.get()
+
+        graphics.DrawText(swap, font1, 0, font1.baseline + 0, ip_color, device[1])
+        graphics.DrawText(swap, font1, 0, font1.baseline + 10, text_color, "Connected")
+        graphics.DrawText(swap, font1, 0, font1.baseline + 21, ip_color, device[0])
 
         matrix.SwapOnVSync(swap)
 
@@ -117,16 +148,19 @@ class NetworkTracker:
     def display_old(self, matrix):
         swap = matrix.CreateFrameCanvas()
 
-        font = graphics.Font()
-        font.LoadFont(settings.FONT_PATH + "5x8.bdf")
-        text_color = graphics.Color(0, 150, 75)
-        ip_color = graphics.Color(0, 250, 0)
+        font1 = graphics.Font()
+        font1.LoadFont(settings.FONT_PATH + "5x8.bdf")
+
+        text_color = graphics.Color(150, 0, 0)
+        ip_color = graphics.Color(0, 200, 0)
 
         swap.Clear()
 
-        graphics.DrawText(swap, font, 0, font.baseline, text_color, "Device")
-        graphics.DrawText(swap, font, 0, font.baseline + 9, text_color, "Disconnected")
-        graphics.DrawText(swap, font, 0, font.baseline + 21, ip_color, self.old_devices.get())
+        device = self.old_devices.get()
+
+        graphics.DrawText(swap, font1, 0, font1.baseline + 1, ip_color, device[1])
+        graphics.DrawText(swap, font1, 0, font1.baseline + 10, text_color, "Disconnected")
+        graphics.DrawText(swap, font1, 0, font1.baseline + 21, ip_color, device[0])
 
         matrix.SwapOnVSync(swap)
 
