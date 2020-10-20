@@ -1,18 +1,53 @@
 import time
-from rgbmatrix import graphics
+from subtask import Subtask
 import settings
+from rgbmatrix import graphics
+from PIL import Image, ImageSequence
 
 
-class BootService:
+class BootService(Subtask):
 
-    def __init__(self):
-        self.add_fnc = None
-        self.rmv_fnc = None
-        self.fnc_id = None
+    def __init__(self, add_loop, rmv_loop, add_event):
+        super().__init__(add_loop, rmv_loop, add_event)
 
-    def init(self, add_loop, rmv_loop):
-        self.add_fnc = add_loop
-        self.rmv_fnc = rmv_loop
+        add_event(1, self.display_boot_animation)
+        add_event(1, self.display_boot_info)
 
-    def service(self, add_event):
-        pass
+    def display_boot_animation(self, matrix):
+        try:
+            image = Image.open(settings.IMAGES_PATH + 'boot3.gif')
+        except FileNotFoundError:
+            print('Boot Animation not found')
+            return
+
+        for frame in range(0, image.n_frames):
+            image.seek(frame)
+            temp = image.copy()
+            temp = temp.resize((64, 32))
+            matrix.SetImage(temp.convert('RGB'))
+
+            time.sleep(0.03)
+
+        time.sleep(1)
+
+        matrix.Clear()
+
+    def display_boot_info(self, matrix):
+        swap = matrix.CreateFrameCanvas()
+
+        font = graphics.Font()
+        font.LoadFont(settings.FONT_PATH + "5x8.bdf")
+        header_color = graphics.Color(0, 180, 20)
+        text_color = graphics.Color(100, 0, 100)
+        number_color = graphics.Color(100, 100, 100)
+
+        graphics.DrawText(swap, font, 8, font.baseline, header_color, "Boot Info")
+        graphics.DrawText(swap, font, 0, font.baseline + 11, text_color, "Modules:")
+        graphics.DrawText(swap, font, 54, font.baseline + 11, number_color, str(settings.LOADED_MODULES))
+        graphics.DrawText(swap, font, 0, font.baseline + 20, text_color, "Services:")
+        graphics.DrawText(swap, font, 54, font.baseline + 20, number_color, str(settings.RUNNING_SERVICES))
+
+        matrix.SwapOnVSync(swap)
+
+        time.sleep(3)
+
