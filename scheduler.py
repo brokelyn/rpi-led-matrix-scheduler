@@ -6,6 +6,7 @@ import inspect
 import sys
 import types
 import random
+import settings
 from subtasks import *
 from q_object import QObject
 
@@ -16,11 +17,12 @@ class Scheduler:
         self.loop_q = queue.PriorityQueue()
         self.event_q = queue.PriorityQueue()
 
-        self.submodules = Scheduler.load_submodules()
-        self.init_submodules()
-
+        self.submodules = self.load_submodules()
+        settings.LOADED_MODULES = len(self.submodules)
+        print("Done loading Modules! " + str(len(self.submodules)) + " modules were loaded.\n")
         self.services = self.init_submodule_services()
-        print("Done loading! " + str(len(self.services)) + " services are runnning.\n")
+        settings.RUNNING_SERVICES = len(self.services)
+        print("Done loading Services! " + str(len(self.services)) + " services are runnning.\n")
 
         self.matrix = init_leds()
 
@@ -50,28 +52,20 @@ class Scheduler:
         thread.start()
         thread.join()
 
-    @staticmethod
-    def load_submodules():
+    def load_submodules(self):
         classes = []
         for name, val in globals().items():
             if isinstance(val, types.ModuleType) and "subtasks" in val.__name__:
                 print("Found submodule %s" % val)
                 clsmembers = inspect.getmembers(val, inspect.isclass)
-                classes.append(clsmembers[0][1]())
+                classes.append(clsmembers[0][1](self.add_loop, self.rmv_loop, self.add_event))
         return classes
-
-    def init_submodules(self):
-        for mod in self.submodules:
-            try:
-                mod.init(self.add_loop, self.rmv_loop)
-            except AttributeError:
-                print("Could not load: " + str(mod) + ". Missing 'init' method", file=sys.stderr)
 
     def init_submodule_services(self):
         services = []
         for mod in self.submodules:
             try:
-                thread = threading.Thread(target=mod.service, args=(self.add_event, ))
+                thread = threading.Thread(target=mod.service, args=())
                 thread.start()
                 services.append(thread)
             except AttributeError:
@@ -98,4 +92,5 @@ class Scheduler:
         raise Exception("Cant find ID for loop function!")
 
 
-Scheduler()
+if __name__ == "__main__":
+    Scheduler()

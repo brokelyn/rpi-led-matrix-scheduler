@@ -1,4 +1,10 @@
 LED_LIBRARY = '/home/pi/rpi-rgb-led-matrix/bindings/python'
 
-FONT_PATH = "/home/pi/rpi-rgb-led-matrix/fonts/"
+FONT_PATH = "./fonts/"
+IMAGES_PATH = "./images/"
+
+STANDBY_DEVICE_IP = '192.168.0.88'
+
+LOADED_MODULES = 0
+RUNNING_SERVICES = 0
 

@@ -1,14 +1,18 @@
 import time
 from rgbmatrix import graphics
+from subtask import Subtask
 import queue
 import collections
 import settings
 import subprocess
 
 
-class NetworkTracker:
+class NetworkTracker(Subtask):
 
-    def __init__(self):
+    def __init__(self, add_loop, rmv_loop, add_event):
+        super().__init__(add_loop, rmv_loop, add_event)
+        add_loop(4.5, self.display_connected)
+
         self.new_devices = queue.Queue()
         self.old_devices = queue.Queue()
         self.active_devices = {}
@@ -48,31 +52,26 @@ class NetworkTracker:
 
         return devices
 
-    def init(self, add_loop, rmv_loop):
-        add_loop(4.5, self.display_connected)
-
-    def service(self, add_event):
+    def service(self):
         while True:
             average_devices = {}
             for r in range(2):
                 devices = NetworkTracker.discover_network()
                 average_devices = {**average_devices, **devices}
-                print(average_devices)
-                print()
 
-                time.sleep(2)
+                time.sleep(3)
 
             for key in self.active_devices.keys():  # offline since last check
                 if key not in average_devices.keys():
                     self.old_devices.put([key, self.active_devices[key]])
                     self.active_devices.pop(key)
-                    add_event(2, self.display_old)
+                    self.add_event_fnc(2, self.display_old)
 
-            for key in average_devices.keys():  # online since last check                print("key " + key + " in average keys")
+            for key in average_devices.keys():  # online since last check
                 if key not in self.active_devices.keys():
                     self.active_devices[key] = [average_devices[key], time.perf_counter()]
                     self.new_devices.put([key, average_devices[key]])
-                    add_event(2, self.display_new)
+                    self.add_event_fnc(2, self.display_new)
 
             time.sleep(120)
 
@@ -116,7 +115,7 @@ class NetworkTracker:
         time.sleep(3)
 
         if len(self.active_devices) > 4:
-            for r in range((len(self.active_devices) - 4) * 6 + 1):
+            for r in range((len(self.active_devices) - 4) * 9 + 1):
                 draw_devices(r)
 
                 matrix.SwapOnVSync(swap)

@@ -1,6 +1,7 @@
 import math
 import time
 import random as rnd
+from subtask import Subtask
 from rgbmatrix import graphics
 
 
@@ -64,13 +65,11 @@ def rnd_point(minx, maxx, miny, maxy):
     return point(rnd.random() * (maxx - minx) + minx, rnd.random() * (maxy - miny) + miny)
 
 
-class Galaxy:
+class Galaxy(Subtask):
 
-    def init(self, add_loop, rmv_loop):
+    def __init__(self, add_loop, rmv_loop, add_event):
+        super().__init__(add_loop, rmv_loop, add_event)
         add_loop(4, self.display_galaxy)
-
-    def service(self, add_event):
-        pass
 
     def display_galaxy(self, matrix):
         swap = matrix.CreateFrameCanvas()

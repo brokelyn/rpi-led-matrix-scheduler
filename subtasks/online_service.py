@@ -1,16 +1,15 @@
 import time
 from rgbmatrix import graphics
+from subtask import Subtask
 import settings
 import ping3
 
 
-class OnlineService:
+class OnlineService(Subtask):
 
-    def init(self, add_loop, rmv_loop):
+    def __init__(self, add_loop, rmv_loop, add_event):
+        super().__init__(add_loop, rmv_loop, add_event)
         add_loop(4, self.display_ping_test)
-
-    def service(self, add_event):
-        pass
 
     @staticmethod
     def draw_cross(matrix, x, y):
@@ -37,7 +36,7 @@ class OnlineService:
         green = graphics.Color(0, 200, )
         yellow = graphics.Color(200, 140, 0)
 
-        graphics.DrawText(swap, font, 0, font.baseline, header_color, "Services:")
+        graphics.DrawText(swap, font, 8, font.baseline, header_color, "Services")
         graphics.DrawText(swap, font, 0, font.baseline + 9, text_color, "Router:")
         graphics.DrawText(swap, font, 0, font.baseline + 17, text_color, "google:")
         graphics.DrawText(swap, font, 0, font.baseline + 24, text_color, "ping ms:")

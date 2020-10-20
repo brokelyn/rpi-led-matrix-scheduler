@@ -1,15 +1,14 @@
 import time
 from rgbmatrix import graphics
+from subtask import Subtask
 import ping3
 import settings
 
 
-class StandbyService:
+class StandbyService(Subtask):
 
-    def __init__(self):
-        self.add_fnc = None
-        self.rmv_fnc = None
-        self.fnc_id = None
+    def __init__(self, add_loop, rmv_loop, add_event):
+        super().__init__(add_loop, rmv_loop, add_event)
         self.online = True
 
     def ping(self, ip, n):
@@ -17,32 +16,28 @@ class StandbyService:
         for i in range(n):
             try:
                 result = ping3.ping(ip, unit="ms", timeout=5, size=2)
+                if not result:  # inactive
+                    counter += 1
             except:
-                counter += 1
-            if not result:  # inactive
                 counter += 1
         return counter
 
-    def init(self, add_loop, rmv_loop):
-        self.add_fnc = add_loop
-        self.rmv_fnc = rmv_loop
-
-    def service(self, add_event):
+    def service(self):
         while True:
             if self.online:
                 if self.fnc_id:
                     self.rmv_fnc(self.fnc_id)
-                    add_event(1, self.welcome)
+                    self.add_event_fnc(1, self.welcome)
                 while True:
-                    if self.ping("192.168.0.88", 5) == 5:
+                    if self.ping(settings.STANDBY_DEVICE_IP, 5) == 5:
                         self.online = False
                         break
                     time.sleep(40)
             else:
-                add_event(1, self.goodbye)
-                self.fnc_id = self.add_fnc(1, self.standby)
+                self.add_event_fnc(1, self.goodbye)
+                self.fnc_id = super().add_fnc(1, self.standby)
                 while True:
-                    if self.ping("192.168.0.88", 3) == 0:
+                    if self.ping(settings.STANDBY_DEVICE_IP, 3) == 0:
                         self.online = True
                         break
                     time.sleep(50)

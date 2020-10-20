@@ -1,6 +1,7 @@
 import math
 import time
 import random as rnd
+from subtask import Subtask
 from rgbmatrix import graphics
 
 
@@ -151,13 +152,11 @@ def rnd_point(minx, maxx, miny, maxy):
     return point(rnd.random() * (maxx - minx) + minx, rnd.random() * (maxy - miny) + miny)
 
 
-class Boids:
+class Boids(Subtask):
 
-    def init(self, add_loop, rmv_loop):
+    def __init__(self, add_loop, rmv_loop, add_event):
+        super().__init__(add_loop, rmv_loop, add_event)
         add_loop(4.5, self.display_swarm)
-
-    def service(self, add_event):
-        pass
 
     def display_swarm(self, matrix):
         swap = matrix.CreateFrameCanvas()
@@ -175,7 +174,7 @@ class Boids:
                 swap.SetPixel(obj.location.x, obj.location.y, obj.color.red, obj.color.green, obj.color.blue)
 
             matrix.SwapOnVSync(swap)
-            time.sleep(0.001)
+            time.sleep(0.01)
 
 
 
