@@ -53,6 +53,7 @@ class NetworkTracker(Subtask):
         return devices
 
     def service(self):
+        time.sleep(120)
         while True:
             average_devices = {}
             for r in range(2):

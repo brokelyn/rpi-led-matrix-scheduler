@@ -15,7 +15,7 @@ class BootService(Subtask):
 
     def display_boot_animation(self, matrix):
         try:
-            image = Image.open(settings.IMAGES_PATH + 'boot3.gif')
+            image = Image.open(settings.IMAGES_PATH + 'boot2.gif')
         except FileNotFoundError:
             print('Boot Animation not found')
             return
@@ -49,5 +49,5 @@ class BootService(Subtask):
 
         matrix.SwapOnVSync(swap)
 
-        time.sleep(3)
+        time.sleep(5)
 

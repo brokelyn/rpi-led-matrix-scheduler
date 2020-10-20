@@ -21,7 +21,7 @@ class PiholeStats(Subtask):
             print('Pi-Hole image not found')
             return
 
-        for i in range(3):
+        for i in range(4):
             response = requests.get("http://" + settings.PI_HOLE_IP + "/admin/api.php?summaryRaw")
             json = response.json()
             queries_today = json['dns_queries_today']
@@ -42,4 +42,4 @@ class PiholeStats(Subtask):
 
             matrix.SwapOnVSync(swap)
             matrix.SetImage(image.convert('RGB'))
-            time.sleep(2.5)
+            time.sleep(2)
