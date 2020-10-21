@@ -25,7 +25,7 @@ class Clock(Subtask):
             swap.Clear()
 
             graphics.DrawText(swap, font, 2,  font.baseline - 2, graphics.Color(120, 0, 190), time_text1)
-            graphics.DrawText(swap, font, 4, font.baseline + 9, graphics.Color(80, 0, 140), time_text2)
+            graphics.DrawText(swap, font, 4, font.baseline + 9, graphics.Color(140, 140, 140), time_text2)
             graphics.DrawText(swap, font, 2, font.baseline + 21, graphics.Color(120, 0, 190), time_text3)
 
             swap = matrix.SwapOnVSync(swap)

@@ -37,7 +37,7 @@ class PiholeStats(Subtask):
             graphics.DrawText(swap, font, 5, font.baseline - 2, graphics.Color(120, 120, 120), " Pi Hole")
             graphics.DrawText(swap, font, 0, font.baseline * 2 - 2, graphics.Color(0, 180, 120), "Query")
             graphics.DrawText(swap, font2, 35, font.baseline * 2 - 2, graphics.Color(0, 180, 20), str(queries_today))
-            graphics.DrawText(swap, font, 0, font.baseline * 3 - 1, graphics.Color(120, 20, 20), "Blocked")
+            graphics.DrawText(swap, font, 0, font.baseline * 3 - 1, graphics.Color(140, 10, 10), "Blocked")
             graphics.DrawText(swap, font2, 47, font.baseline * 3 - 1, graphics.Color(120, 0, 0), str(percentage_blocked)[:2] + '%')
 
             matrix.SwapOnVSync(swap)

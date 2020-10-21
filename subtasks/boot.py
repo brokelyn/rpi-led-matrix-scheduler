@@ -28,7 +28,7 @@ class BootService(Subtask):
 
             time.sleep(0.03)
 
-        time.sleep(1)
+        time.sleep(0.5)
 
         matrix.Clear()
 
