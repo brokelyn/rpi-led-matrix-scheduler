@@ -68,8 +68,10 @@ class Scheduler:
                 thread = threading.Thread(target=mod.service, args=())
                 thread.start()
                 services.append(thread)
+                print("Loaded Service of module: " + str(mod))
             except AttributeError:
-                print("Module: " + str(mod) + " has no 'service' method.", file=sys.stderr)
+                pass
+                #print("Module: " + str(mod) + " has no 'service' method.", file=sys.stderr)
         return services
 
     def add_event(self, priority, display_fnc):
