@@ -3,7 +3,6 @@ import queue
 import threading
 
 import inspect
-import sys
 import types
 import random
 import settings

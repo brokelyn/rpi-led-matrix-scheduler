@@ -94,6 +94,10 @@ class NetworkTracker(Subtask):
 
             graphics.DrawText(swap, font1, 13, font1.baseline - offset, text_color, "Network")
 
+            if len(self.active_devices) == 0:
+                graphics.DrawText(swap, font2, 4, 20, up_color, "No Connecions!")
+                return
+
             for ip in collections.OrderedDict(sorted(self.active_devices.items())):
                 device = self.active_devices[ip]
                 online_min = int((time.perf_counter() - device[1]) / 60)
