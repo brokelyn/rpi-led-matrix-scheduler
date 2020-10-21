@@ -2,7 +2,7 @@ import os
 import sys
 import settings
 
-sys.path.append(os.path.abspath(settings.LED_LIBRARY))
+sys.path.append(os.path.abspath(settings.PATH_PYTHON_BINDING))
 
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 

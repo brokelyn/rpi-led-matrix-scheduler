@@ -30,8 +30,8 @@ class StatsSyncthing(Subtask):
     def request_completion(self):
         def request(obj):
             url = 'https://' + settings.SYNCTHING_IP + '/rest/db/completion'
-            headers = {'X-API-Key': '4wwrmNVHQnMsemT7aQjjPzMAGTuD2tHW'}
-            parameters = {'folder': 'a9vqs-p5kzu'}
+            headers = {'X-API-Key': settings.SYNCTHING_API_KEY}
+            parameters = {'folder': settings.SYNCTHING_FOLDER_ID}
 
             response = requests.get(url, headers=headers, params=parameters, verify=False)
             obj.response_code = response.status_code
@@ -45,7 +45,7 @@ class StatsSyncthing(Subtask):
 
         while True:
             url = 'https://' + settings.SYNCTHING_IP + '/rest/events'
-            headers = {'X-API-Key': '4wwrmNVHQnMsemT7aQjjPzMAGTuD2tHW'}
+            headers = {'X-API-Key': settings.SYNCTHING_API_KEY}
             parameters = {'events': 'ItemStarted', 'since': last_id, 'limit': 1}
 
             response = requests.get(url, headers=headers, params=parameters, verify=False)
