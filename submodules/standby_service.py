@@ -26,18 +26,18 @@ class StandbyService(Submodule):
         while True:
             if self.online:
                 if self.fnc_id:
-                    self.rmv_fnc(self.fnc_id)
-                    self.add_event_fnc(1, self.welcome)
+                    self.rmv_loop(self.fnc_id)
+                    self.add_event(1, self.welcome)
                 while True:
                     if self.ping(settings.STANDBY_DEVICE_IP, 5) == 5:
                         self.online = False
                         break
                     time.sleep(40)
             else:
-                self.add_event_fnc(1, self.goodbye)
-                self.fnc_id = super().add_fnc(1, self.standby)
+                self.add_event(1, self.goodbye)
+                self.fnc_id = super().add_loop(1, self.standby)
                 while True:
-                    if self.ping(settings.STANDBY_DEVICE_IP, 3) == 0:
+                    if self.ping(settings.STANDBY_DEVICE_IP, 1) == 0:
                         self.online = True
                         break
                     time.sleep(50)

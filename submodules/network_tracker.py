@@ -66,13 +66,13 @@ class NetworkTracker(Submodule):
                 if key not in average_devices.keys():
                     self.old_devices.put([key, self.active_devices[key]])
                     self.active_devices.pop(key)
-                    self.add_event_fnc(2, self.display_old)
+                    self.add_event(2, self.display_old)
 
             for key in average_devices.keys():  # online since last check
                 if key not in self.active_devices.keys():
                     self.active_devices[key] = [average_devices[key], time.perf_counter()]
                     self.new_devices.put([key, average_devices[key]])
-                    self.add_event_fnc(2, self.display_new)
+                    self.add_event(2, self.display_new)
 
             time.sleep(120)
 

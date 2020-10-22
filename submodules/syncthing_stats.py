@@ -55,7 +55,7 @@ class StatsSyncthing(Submodule):
                 last_id = json[len(json) - 1]['id']
                 if not self.is_active:
                     self.is_active = True
-                    self.add_event_fnc(2, self.display_status)
+                    self.add_event(2, self.display_status)
 
                     while self.is_active:
                         time.sleep(3)
