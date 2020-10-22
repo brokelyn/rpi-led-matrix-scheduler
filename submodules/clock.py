@@ -1,11 +1,11 @@
 import time
 from rgbmatrix import graphics
-from subtask import Subtask
+from submodule import Submodule
 from datetime import datetime
 import settings
 
 
-class Clock(Subtask):
+class Clock(Submodule):
 
     def __init__(self, add_loop, rmv_loop, add_event):
         super().__init__(add_loop, rmv_loop, add_event)

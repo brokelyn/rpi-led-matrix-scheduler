@@ -1,5 +1,5 @@
 import time
-from subtask import Subtask
+from submodule import Submodule
 from rgbmatrix import graphics
 from PIL import Image
 import settings
@@ -7,7 +7,7 @@ import requests
 import threading
 
 
-class StatsSyncthing(Subtask):
+class StatsSyncthing(Submodule):
 
     def __init__(self, add_loop, rmv_loop, add_event):
         super().__init__(add_loop, rmv_loop, add_event)

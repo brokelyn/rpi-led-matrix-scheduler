@@ -1,11 +1,11 @@
 import time
-from subtask import Subtask
+from submodule import Submodule
 import settings
 from rgbmatrix import graphics
 from PIL import Image, ImageSequence
 
 
-class BootService(Subtask):
+class BootService(Submodule):
 
     def __init__(self, add_loop, rmv_loop, add_event):
         super().__init__(add_loop, rmv_loop, add_event)

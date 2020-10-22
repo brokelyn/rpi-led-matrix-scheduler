@@ -1,13 +1,13 @@
 import time
 from rgbmatrix import graphics
-from subtask import Subtask
+from submodule import Submodule
 import queue
 import collections
 import settings
 import subprocess
 
 
-class NetworkTracker(Subtask):
+class NetworkTracker(Submodule):
 
     def __init__(self, add_loop, rmv_loop, add_event):
         super().__init__(add_loop, rmv_loop, add_event)
