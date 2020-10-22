@@ -32,13 +32,13 @@ In the `submodules` folder are the different submodules
         - this method will add a one time execution of an effect of this module
         - the first parameter is the priority number. If more than one event is active the one with the lowest priority will be executed
         - the second parameter will be the function which will be called once
-    - each of this parameters will be saved by the super class like this `super().__init__(add_loop, rmv_loop, add_event)`
+    - each of this parameters can be saved by the super class like this `super().__init__(add_loop, rmv_loop, add_event)`
     - so using one of the method can be done by `self.add_event_fnc(2, self.fnc_name)`
 - each submodule can a have a `service` function
-    - the `servide` function which will be executed in an extra thread by the scheduler
+    - the `service` function which will be executed in an extra thread by the scheduler
     - it can be useful when requesting an api in the background and then display an event
     - it can be used by implementing the `def service(self):` function
-    - if there is no need for the `service` function it is **not required to implement it** 
+    - if there is no need for the `service` function it is **not required to implement** 
         
 A good example submodule is the `clock` submodule. Own submodule can be developed by adding a python file to
 the submodule folder and following the submodule structure above. The submodule should be detected and started 
