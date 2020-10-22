@@ -7,10 +7,30 @@ import types
 import random
 import settings
 from submodules import *
-from q_object import QObject
 
 
 class Scheduler:
+    class QObject:
+
+        def __init__(self, priority, id, fnc):
+            self.base_prio = priority
+            self.curr_prio = priority
+            self.call_fnc = fnc
+
+            self.id = id
+
+        def get_fnc(self):
+            self.curr_prio = self.base_prio
+            return self.call_fnc
+
+        def __lt__(self, other):
+            if self.curr_prio < other.curr_prio:
+                return True
+            else:
+                return False
+
+        def adjust_prio(self):
+            self.curr_prio = max(1.1, self.curr_prio - 0.2)
 
     def __init__(self):
         self.loop_q = queue.PriorityQueue()
@@ -34,7 +54,7 @@ class Scheduler:
     def next(self):
         if not self.event_q.empty():
             event = self.event_q.get()
-            print("Next: " + str(event.call_fnc))
+            print("Event Next: " + str(event.call_fnc))
             self.run_module(event.get_fnc())
         else:
             for obj in self.loop_q.queue:
@@ -43,7 +63,7 @@ class Scheduler:
             fnc = loop.get_fnc()
             self.loop_q.put(loop)
 
-            print("Next: " + str(loop.call_fnc))
+            print("Loop Next: " + str(loop.call_fnc))
             self.run_module(fnc)
 
     def run_module(self, fnc):
@@ -75,13 +95,13 @@ class Scheduler:
 
     def add_event(self, priority, display_fnc):
         id = random.getrandbits(128)
-        qObj = QObject(priority, id, display_fnc)
+        qObj = Scheduler.QObject(priority, id, display_fnc)
         self.event_q.put(qObj)
         return id
 
     def add_loop(self, priority, display_fnc):
         id = random.getrandbits(128)
-        qObj = QObject(priority, id, display_fnc)
+        qObj = Scheduler.QObject(priority, id, display_fnc)
         self.loop_q.put(qObj)
         return id
 
