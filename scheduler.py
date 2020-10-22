@@ -6,7 +6,7 @@ import inspect
 import types
 import random
 import settings
-from subtasks import *
+from submodules import *
 from q_object import QObject
 
 
@@ -54,7 +54,7 @@ class Scheduler:
     def load_submodules(self):
         classes = []
         for name, val in globals().items():
-            if isinstance(val, types.ModuleType) and "subtasks" in val.__name__:
+            if isinstance(val, types.ModuleType) and "submodules" in val.__name__:
                 print("Found submodule %s" % val)
                 clsmembers = inspect.getmembers(val, inspect.isclass)
                 classes.append(clsmembers[0][1](self.add_loop, self.rmv_loop, self.add_event))

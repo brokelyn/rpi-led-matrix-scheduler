@@ -45,7 +45,7 @@ class OnlineService(Subtask):
 
         time.sleep(1)
 
-        result = ping3.ping("192.168.0.1", unit="ms", timeout=1, size=2)
+        result = ping3.ping("192.168.0.1", unit="ms", timeout=1, size=3)
         if not result or result is None:
             OnlineService.draw_cross(swap, 55, 10)
         else:
@@ -54,7 +54,7 @@ class OnlineService(Subtask):
         matrix.SwapOnVSync(swap)
         time.sleep(1)
 
-        result = ping3.ping("8.8.8.8", unit="ms", timeout=3, size=2)
+        result = ping3.ping("8.8.8.8", unit="ms", timeout=3, size=3)
         if not result or result is None:
             OnlineService.draw_cross(swap, 55, 18)
         else:
