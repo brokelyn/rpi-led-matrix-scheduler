@@ -35,7 +35,7 @@ class StandbyService(Submodule):
                     time.sleep(40)
             else:
                 self.add_event(1, self.goodbye)
-                self.fnc_id = super().add_loop(1, self.standby)
+                self.fnc_id = self.add_loop(1, self.standby)
                 while True:
                     if self.ping(settings.STANDBY_DEVICE_IP, 1) == 0:
                         self.online = True
