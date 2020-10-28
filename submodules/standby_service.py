@@ -18,6 +18,8 @@ class StandbyService(Submodule):
                 result = ping3.ping(ip, unit="ms", timeout=5, size=2)
                 if not result:  # inactive
                     counter += 1
+                else:
+                    return 0
             except:
                 counter += 1
         return counter
