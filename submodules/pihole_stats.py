@@ -41,5 +41,5 @@ class PiholeStats(Submodule):
             graphics.DrawText(swap, font2, 47, font.baseline * 3 - 1, graphics.Color(120, 0, 0), str(percentage_blocked)[:2] + '%')
 
             matrix.SwapOnVSync(swap)
-            matrix.SetImage(image.convert('RGB'))
+            matrix.SetImage(image.convert('RGB'), unsafe=False)
             time.sleep(2)

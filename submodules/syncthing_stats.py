@@ -91,7 +91,7 @@ class StatsSyncthing(Submodule):
             graphics.DrawText(swap, font2, 48, font.baseline * 3 - 1, graphics.Color(150, 50, 50), need_delete)
 
             matrix.SwapOnVSync(swap)
-            matrix.SetImage(self.image)
+            matrix.SetImage(self.image, unsafe=False)
             self.request_completion()
             if not self.is_active:
                 time.sleep(6)

@@ -24,7 +24,7 @@ class BootService(Submodule):
             image.seek(frame)
             temp = image.copy()
             temp = temp.resize((64, 32))
-            matrix.SetImage(temp.convert('RGB'))
+            matrix.SetImage(temp.convert('RGB'), unsafe=False)
 
             time.sleep(0.03)
 
