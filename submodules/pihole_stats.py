@@ -11,7 +11,7 @@ class PiholeStats(Submodule):
     def __init__(self, add_loop, rmv_loop, add_event):
         super().__init__(add_loop, rmv_loop, add_event)
 
-        add_loop(4, self.display_stats)
+        add_loop(4.5, self.display_stats)
 
     def display_stats(self, matrix):
         try:

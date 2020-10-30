@@ -26,26 +26,26 @@ class BootService(Submodule):
             temp = temp.resize((64, 32))
             matrix.SetImage(temp.convert('RGB'), unsafe=False)
 
-            time.sleep(0.03)
-
-        time.sleep(0.2)
+            time.sleep(0.025)
 
         matrix.Clear()
 
     def display_boot_info(self, matrix):
         swap = matrix.CreateFrameCanvas()
 
+        fontBold = graphics.Font()
+        fontBold.LoadFont(settings.FONT_PATH + "6x13B.bdf")
         font = graphics.Font()
         font.LoadFont(settings.FONT_PATH + "5x8.bdf")
         header_color = graphics.Color(0, 180, 20)
         text_color = graphics.Color(100, 0, 100)
         number_color = graphics.Color(100, 100, 100)
 
-        graphics.DrawText(swap, font, 8, font.baseline, header_color, "Boot Info")
-        graphics.DrawText(swap, font, 0, font.baseline + 11, text_color, "Modules:")
-        graphics.DrawText(swap, font, 54, font.baseline + 11, number_color, str(settings.LOADED_MODULES))
-        graphics.DrawText(swap, font, 0, font.baseline + 20, text_color, "Services:")
-        graphics.DrawText(swap, font, 54, font.baseline + 20, number_color, str(settings.RUNNING_SERVICES))
+        graphics.DrawText(swap, fontBold, 5, fontBold.baseline - 2, header_color, "Boot Info")
+        graphics.DrawText(swap, font, 1, font.baseline + 13, text_color, "Modules:")
+        graphics.DrawText(swap, font, 54, font.baseline + 13, number_color, str(settings.LOADED_MODULES))
+        graphics.DrawText(swap, font, 1, font.baseline + 22, text_color, "Services:")
+        graphics.DrawText(swap, font, 54, font.baseline + 22, number_color, str(settings.RUNNING_SERVICES))
 
         matrix.SwapOnVSync(swap)
 

@@ -58,7 +58,7 @@ class StatsSyncthing(Submodule):
                     self.add_event(2, self.display_status)
 
                     while self.is_active:
-                        time.sleep(3)
+                        time.sleep(10)
 
     def display_status(self, matrix):
         self.request_completion()
@@ -88,7 +88,7 @@ class StatsSyncthing(Submodule):
             graphics.DrawText(swap, font, 0, font.baseline * 3 - 1, graphics.Color(20, 20, 120), "I")
             graphics.DrawText(swap, font2, 8, font.baseline * 3 - 1, graphics.Color(40, 40, 140), need_items)
             graphics.DrawText(swap, font, 38, font.baseline * 3 - 1, graphics.Color(100, 20, 20), "D")
-            graphics.DrawText(swap, font2, 48, font.baseline * 3 - 1, graphics.Color(150, 50, 50), need_delete)
+            graphics.DrawText(swap, font2, 47, font.baseline * 3 - 1, graphics.Color(150, 50, 50), need_delete)
 
             matrix.SwapOnVSync(swap)
             matrix.SetImage(self.image, unsafe=False)

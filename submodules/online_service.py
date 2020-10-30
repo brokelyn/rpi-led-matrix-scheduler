@@ -9,7 +9,7 @@ class OnlineService(Submodule):
 
     def __init__(self, add_loop, rmv_loop, add_event):
         super().__init__(add_loop, rmv_loop, add_event)
-        add_loop(4, self.display_ping_test)
+        add_loop(6, self.display_ping_test)
 
     @staticmethod
     def draw_cross(matrix, x, y):
@@ -28,6 +28,8 @@ class OnlineService(Submodule):
     def display_ping_test(self, matrix):
         swap = matrix.CreateFrameCanvas()
 
+        fontBold = graphics.Font()
+        fontBold.LoadFont(settings.FONT_PATH + "6x13B.bdf")
         font = graphics.Font()
         font.LoadFont(settings.FONT_PATH + "5x8.bdf")
         header_color = graphics.Color(100, 100, 100)
@@ -36,7 +38,7 @@ class OnlineService(Submodule):
         green = graphics.Color(0, 200, )
         yellow = graphics.Color(200, 140, 0)
 
-        graphics.DrawText(swap, font, 9, font.baseline, header_color, "Services")
+        graphics.DrawText(swap, fontBold, 7, fontBold.baseline - 2, header_color, "Services")
         graphics.DrawText(swap, font, 0, font.baseline + 9, text_color, "Router:")
         graphics.DrawText(swap, font, 0, font.baseline + 17, text_color, "google:")
         graphics.DrawText(swap, font, 0, font.baseline + 24, text_color, "ping ms:")
