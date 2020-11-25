@@ -11,7 +11,7 @@ class PiholeStats(Submodule):
     def __init__(self, add_loop, rmv_loop, add_event):
         super().__init__(add_loop, rmv_loop, add_event)
 
-        add_loop(4.5, self.display_stats)
+        add_loop(1.5, self.display_stats)
 
     def display_stats(self, matrix):
         try:
@@ -25,7 +25,7 @@ class PiholeStats(Submodule):
             response = requests.get("http://" + settings.PI_HOLE_IP + "/admin/api.php?summaryRaw")
             json = response.json()
             queries_today = json['dns_queries_today']
-            percentage_blocked = json['ads_percentage_today']
+            percentage_blocked = int(json['ads_percentage_today'])
 
             swap = matrix.CreateFrameCanvas()
 
@@ -38,7 +38,7 @@ class PiholeStats(Submodule):
             graphics.DrawText(swap, font, 0, font.baseline * 2 - 2, graphics.Color(0, 180, 120), "Query")
             graphics.DrawText(swap, font2, 35, font.baseline * 2 - 2, graphics.Color(0, 180, 20), str(queries_today))
             graphics.DrawText(swap, font, 0, font.baseline * 3 - 1, graphics.Color(140, 10, 10), "Blocked")
-            graphics.DrawText(swap, font2, 47, font.baseline * 3 - 1, graphics.Color(120, 0, 0), str(percentage_blocked)[:2] + '%')
+            graphics.DrawText(swap, font2, 47, font.baseline * 3 - 1, graphics.Color(120, 0, 0), str(percentage_blocked) + '%')
 
             matrix.SwapOnVSync(swap)
             matrix.SetImage(image.convert('RGB'), unsafe=False)
