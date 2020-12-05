@@ -67,10 +67,10 @@ class StatsSyncthing(Submodule):
 
     def sync_action(self, matrix):
         for folder_id in range(len(self.folder)):
-            for i in range(4):
+            for i in range(8):
                 self.display_status(matrix, folder_id)
                 self.request_completion(folder_id)
-                time.sleep(2)
+                time.sleep(1)
 
                 try:
                     completion = int(self.data[folder_id]['completion'])
@@ -84,10 +84,10 @@ class StatsSyncthing(Submodule):
 
     def sync_status(self, matrix):
         for folder_id in range(len(self.folder)):
-            for i in range(2):
+            for i in range(4):
                 self.display_status(matrix, folder_id)
                 self.request_completion(folder_id)
-                time.sleep(2)
+                time.sleep(1)
 
     def display_status(self, matrix, folder_id):
         try:
