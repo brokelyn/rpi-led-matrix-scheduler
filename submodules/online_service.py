@@ -9,7 +9,7 @@ class OnlineService(Submodule):
 
     def __init__(self, add_loop, rmv_loop, add_event):
         super().__init__(add_loop, rmv_loop, add_event)
-        add_loop(6, self.display_ping_test)
+        add_loop(8, self.display_ping_test)
 
     @staticmethod
     def draw_cross(matrix, x, y):
@@ -61,9 +61,6 @@ class OnlineService(Submodule):
             OnlineService.draw_cross(swap, 55, 18)
         else:
             OnlineService.draw_check(swap, 55, 18)
-
-        matrix.SwapOnVSync(swap)
-        time.sleep(1)
 
         if not result or result is None:
             graphics.DrawText(swap, font, 52, font.baseline + 25, red, "to")
