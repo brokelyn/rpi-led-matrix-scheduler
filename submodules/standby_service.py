@@ -25,6 +25,7 @@ class StandbyService(Submodule):
         return counter
 
     def service(self):
+        time.sleep(60) # start detecting after timeout
         while True:
             if self.online:
                 if self.fnc_id:
