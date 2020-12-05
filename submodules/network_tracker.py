@@ -77,7 +77,7 @@ class NetworkTracker(Submodule):
                 if key not in self.active_devices.keys():
                     self.active_devices[key] = [average_devices[key], time.perf_counter()]
                     self.new_devices.put([key, average_devices[key]])
-                    self.add_event(2, self.display_new)
+                    #self.add_event(2, self.display_new)
 
             time.sleep(120)
 
@@ -100,7 +100,7 @@ class NetworkTracker(Submodule):
             graphics.DrawText(swap, font1, 13, font1.baseline - offset, text_color, "Network")
 
             if len(self.active_devices) == 0:
-                graphics.DrawText(swap, font2, 4, 20, up_color, "No Connecions!")
+                graphics.DrawText(swap, font2, 3, 20, up_color, "No Connections!")
                 return
 
             for ip in collections.OrderedDict(sorted(self.active_devices.items())):
@@ -124,8 +124,8 @@ class NetworkTracker(Submodule):
         matrix.SwapOnVSync(swap)
         time.sleep(3)
 
-        if len(self.active_devices) > 4:
-            for r in range((len(self.active_devices) - 4) * 9 + 1):
+        if len(self.active_devices) > 3:
+            for r in range((len(self.active_devices) - 3) * 8 - 10):
                 draw_devices(r)
 
                 matrix.SwapOnVSync(swap)
