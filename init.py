@@ -23,7 +23,7 @@ def init_leds():
     options.led_rgb_sequence = 'RGB'
     options.pixel_mapper_config = ''
     options.panel_type = ''
-    options.limit_refresh_rate_hz = 59  # reduce flickering due to high energy consumption
+    options.limit_refresh_rate_hz = 0  # no fps limit decreases the cpu usage
     options.show_refresh_rate = 0
     options.gpio_slowdown = 4
     options.disable_hardware_pulsing = False
