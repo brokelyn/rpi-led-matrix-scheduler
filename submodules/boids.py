@@ -11,11 +11,6 @@ avoid_factor = 0.08
 matching_factor = 0.25
 speed_limit = 1.1
 
-group_diff = 0.5
-group_colors = [graphics.Color(200, 0, 0), graphics.Color(0, 200, 0), graphics.Color(0, 0, 200),
-               graphics.Color(200, 0, 200), graphics.Color(200, 200, 0), graphics.Color(0, 200, 200),
-               graphics.Color(200, 200, 200), graphics.Color(200, 100, 100), graphics.Color(50, 200, 100)]
-
 height = 32
 width = 64
 
@@ -111,19 +106,16 @@ def keepWithinBounds(bodies):
             body.velocity.y -= turnFactor
 
 
-def detect_groups(bodies):
-    bodies_copy = bodies[:]
-    num_groups = 0
-    while len(bodies_copy) > 0:
-        body = bodies_copy.pop()
-        body.color = group_colors[num_groups % len(group_colors)]
-        for other in bodies_copy:
-            if point_distance(body.location, other.location) < visual_range:
-                if abs(other.velocity.x - body.velocity.x) < group_diff:
-                    if abs(other.velocity.y - body.velocity.y) < group_diff:
-                        other.color = group_colors[num_groups % len(group_colors)]
-                        bodies_copy.remove(other)
-        num_groups += 1
+def colorBySpeed(bodies):
+    color_step_size = 255 / speed_limit
+
+    for body in bodies:
+        red = min(255, int(color_step_size * abs(body.velocity.x)) + 20)
+        blue = min(255, int(color_step_size * abs(body.velocity.y)) + 20)
+        green = 20#color_step_size * body.velocity.y
+
+        body.color = graphics.Color(red, green, blue)
+
 
 
 def update_location(bodies):
@@ -143,7 +135,7 @@ def compute_step(bodies):
     limitSpeed(bodies)
     keepWithinBounds(bodies)
 
-    #detect_groups(bodies)
+    colorBySpeed(bodies)
 
     update_location(bodies)
 
@@ -166,7 +158,7 @@ class Boids(Submodule):
         for _ in range(25):
             bodies.append(body(rnd_point(1, 63, 1, 31), rnd_point(-1, 0, -1, 0)))
 
-        for i in range(500):
+        for i in range(650):
             compute_step(bodies)
             swap.Clear()
 
@@ -175,13 +167,3 @@ class Boids(Submodule):
 
             matrix.SwapOnVSync(swap)
             time.sleep(0.01)
-
-
-
-
-
-
-
-
-
-
