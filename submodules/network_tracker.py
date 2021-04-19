@@ -77,7 +77,7 @@ class NetworkTracker(Submodule):
                 if key not in self.active_devices.keys():
                     self.active_devices[key] = [average_devices[key], time.perf_counter()]
                     self.new_devices.put([key, average_devices[key]])
-                    #self.add_event(2, self.display_new)
+                    self.add_event(2, self.display_new)
 
             time.sleep(120)
 
@@ -146,7 +146,7 @@ class NetworkTracker(Submodule):
 
         device = self.new_devices.get()
 
-        graphics.DrawText(swap, font1, 0, font1.baseline + 0, ip_color, device[1])
+        graphics.DrawText(swap, font1, 0, font1.baseline + 0, ip_color, device[1][0])
         graphics.DrawText(swap, font1, 0, font1.baseline + 10, text_color, "Connected")
         graphics.DrawText(swap, font1, 0, font1.baseline + 21, ip_color, device[0])
 
@@ -167,7 +167,7 @@ class NetworkTracker(Submodule):
 
         device = self.old_devices.get()
 
-        graphics.DrawText(swap, font1, 0, font1.baseline + 1, ip_color, device[1])
+        graphics.DrawText(swap, font1, 0, font1.baseline + 1, ip_color, device[1][0])
         graphics.DrawText(swap, font1, 0, font1.baseline + 10, text_color, "Disconnected")
         graphics.DrawText(swap, font1, 0, font1.baseline + 21, ip_color, device[0])
 
