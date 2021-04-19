@@ -35,7 +35,7 @@ class StandbyService(Submodule):
                     if self.ping(settings.STANDBY_DEVICE_IP, 5) == 5:
                         self.online = False
                         break
-                    time.sleep(40)
+                    time.sleep(20)
             else:
                 self.add_event(1, self.goodbye)
                 self.fnc_id = self.add_loop(1, self.standby)
@@ -43,7 +43,7 @@ class StandbyService(Submodule):
                     if self.ping(settings.STANDBY_DEVICE_IP, 1) == 0:
                         self.online = True
                         break
-                    time.sleep(50)
+                    time.sleep(25)
 
     def standby(self, matrix):
         swap = matrix.CreateFrameCanvas()
