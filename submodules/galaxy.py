@@ -111,14 +111,4 @@ class Galaxy(Submodule):
                     swap.SetPixel(his.x, his.y, r, g, b)
 
             matrix.SwapOnVSync(swap)
-            time.sleep(0.01)
-
-
-
-
-
-
-
-
-
-
+            time.sleep(0.02)
