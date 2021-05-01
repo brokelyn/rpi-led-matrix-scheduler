@@ -11,7 +11,7 @@ class NetworkTracker(Submodule):
 
     def __init__(self, add_loop, rmv_loop, add_event):
         super().__init__(add_loop, rmv_loop, add_event)
-        add_loop(4.5, self.display_connected)
+        add_loop(5, self.display_connected)
 
         self.new_devices = queue.Queue()
         self.old_devices = queue.Queue()
@@ -95,7 +95,7 @@ class NetworkTracker(Submodule):
 
         def draw_devices(offset):
             swap.Clear()
-            line = 0
+            line = 1
 
             graphics.DrawText(swap, font1, 13, font1.baseline - offset, text_color, "Network")
 
@@ -105,17 +105,21 @@ class NetworkTracker(Submodule):
 
             for ip in collections.OrderedDict(sorted(self.active_devices.items())):
                 device = self.active_devices[ip]
-                online_min = int((time.perf_counter() - device[1]) / 60)
-                y_position = font2.baseline + ((line + 1) * 7) - offset + 2
+                online_sec = int(time.perf_counter() - device[1])
+                # 4 is for spacing between fonts
+                y_position = font2.baseline + (line * (font2.baseline + 2)) + 2 - offset
 
                 graphics.DrawText(swap, font2, 0, y_position, device_color, device[0][:11])
 
-                if online_min > 59:
-                    online_hours = int(online_min / 60)
-                    online_min = int(((online_min % 60) / 60) * 10)
-                    up_text = str(online_hours) + "." + str(online_min) + "h"
-                else:
+                online_min = int(online_sec / 60)
+                online_hours = int(online_min / 60)
+
+                if online_sec < 59:
+                    up_text = str(online_sec) + "s"
+                elif online_min < 59:
                     up_text = str(online_min) + "m"
+                else:
+                    up_text = str(online_hours) + "h"
 
                 graphics.DrawText(swap, font2, 52, y_position, up_color, up_text)
                 line += 1
@@ -124,8 +128,12 @@ class NetworkTracker(Submodule):
         matrix.SwapOnVSync(swap)
         time.sleep(3)
 
+        # first font height (7) + 2 spacing = 9
+        # second font height (5) + 2 spacing = 7
+        total_height = 9 + len(self.active_devices) * 7
+
         if len(self.active_devices) > 3:
-            for r in range((len(self.active_devices) - 3) * 8 - 10):
+            for r in range(total_height - 32):
                 draw_devices(r)
 
                 matrix.SwapOnVSync(swap)
@@ -146,7 +154,7 @@ class NetworkTracker(Submodule):
 
         device = self.new_devices.get()
 
-        graphics.DrawText(swap, font1, 0, font1.baseline + 0, ip_color, device[1][0])
+        graphics.DrawText(swap, font1, 0, font1.baseline + 0, ip_color, device[1])
         graphics.DrawText(swap, font1, 0, font1.baseline + 10, text_color, "Connected")
         graphics.DrawText(swap, font1, 0, font1.baseline + 21, ip_color, device[0])
 
