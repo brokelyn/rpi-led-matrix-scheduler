@@ -20,7 +20,7 @@ class StatsSyncthing(Submodule):
         self.devices = {}
         self.my_device_id = None
 
-        add_loop(4, self.sync_status)
+        add_loop(5, self.sync_status)
 
         try:
             self.image = Image.open(settings.IMAGES_PATH + 'syncthing.jpg')
@@ -151,7 +151,7 @@ class StatsSyncthing(Submodule):
         graphics.DrawText(swap, font, 0, font.baseline * 2, graphics.Color(120, 120, 120), device_name)
         graphics.DrawText(swap, font2, 41, font.baseline * 2, graphics.Color(80, 120, 80), completion)
 
-        if self.devices[device_id]['connected'] and not self.devices[device_id]['paused']:
+        if self.devices[device_id]['connected'] and not self.devices[device_id]['paused'] and completion != '100%':
             graphics.DrawText(swap, font, 0, font.baseline * 3 - 1, graphics.Color(20, 20, 120), "I")
             graphics.DrawText(swap, font2, 8, font.baseline * 3 - 1, graphics.Color(50, 50, 170), need_items)
             graphics.DrawText(swap, font, 38, font.baseline * 3 - 1, graphics.Color(100, 20, 20), "D")
@@ -160,6 +160,8 @@ class StatsSyncthing(Submodule):
             graphics.DrawText(swap, font, 0, font.baseline * 3 - 1, graphics.Color(150, 85, 0), "Paused")
         elif not self.devices[device_id]['connected']:
             graphics.DrawText(swap, font, 0, font.baseline * 3 - 1, graphics.Color(150, 10, 0), "Offline")
+        elif completion == '100%':
+            graphics.DrawText(swap, font, 0, font.baseline * 3 - 1, graphics.Color(10, 120, 10), "Up to Date")
 
         matrix.SwapOnVSync(swap)
         matrix.SetImage(self.image, unsafe=False)
