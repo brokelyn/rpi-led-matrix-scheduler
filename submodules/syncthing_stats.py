@@ -100,15 +100,16 @@ class StatsSyncthing(Submodule):
 
     def sync_action(self, matrix):
         self.request_full_completion()
+        time.sleep(0.1) # wait for result of api request
 
         for device_id in self.devices:
-            for i in range(8):
+            for i in range(6):
                 try:
                     completion = int(self.devices[device_id]['completion'])
                 except KeyError:
                     completion = 0
 
-                if self.is_active and completion == 100:
+                if completion == 100:
                     break
 
                 self.display_status(matrix, device_id)
