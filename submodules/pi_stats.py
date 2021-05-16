@@ -11,17 +11,16 @@ class PiStats(Submodule):
     def __init__(self, add_loop, rmv_loop, add_event):
         super().__init__(add_loop, rmv_loop, add_event)
 
-        add_loop(5.0, self.display_stats)
-
-    def display_stats(self, matrix):
         try:
             image = Image.open(settings.IMAGES_PATH + 'rpi.png')
             image = image.resize((9, 10))
-            rgb_image = image.convert('RGB')
+            self.rgb_image = image.convert('RGB')
         except FileNotFoundError:
             print('Raspberry Pi image not found')
-            return
 
+        add_loop(5.0, self.display_stats)
+
+    def display_stats(self, matrix):
         for i in range(10):
             cpu_perc = int(psutil.cpu_percent())
             cpu_temp = int(psutil.sensors_temperatures()['cpu_thermal'][0].current)
@@ -46,6 +45,6 @@ class PiStats(Submodule):
             graphics.DrawText(swap, font2, 46, font.baseline * 3 - 1, graphics.Color(100, 0, 0), str(cpu_temp) + '°')
 
             matrix.SwapOnVSync(swap)
-            matrix.SetImage(rgb_image, -1, -1, unsafe=False)
-            matrix.SetImage(rgb_image, 55, -1, unsafe=False)
+            matrix.SetImage(self.rgb_image, -1, -1, unsafe=False)
+            matrix.SetImage(self.rgb_image, 55, -1, unsafe=False)
             time.sleep(0.7)
