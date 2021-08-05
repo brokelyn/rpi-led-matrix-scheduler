@@ -8,17 +8,21 @@ import threading
 
 lock = threading.Lock()
 
+
 class StatsSyncthing(Submodule):
 
     def __init__(self, add_loop, rmv_loop, add_event):
         super().__init__(add_loop, rmv_loop, add_event)
 
-        self.base_url = 'https://' + settings.SYNCTHING_IP # always refer to local syncthing
+        # always refer to local syncthing
+        self.base_url = 'https://' + settings.SYNCTHING_IP
         self.headers = {'X-API-Key': settings.SYNCTHING_API_KEY}
 
         self.is_active = False
         self.devices = {}
         self.my_device_id = None
+
+        self.is_init_done = False
 
         add_loop(5, self.sync_status)
 
@@ -30,18 +34,6 @@ class StatsSyncthing(Submodule):
             print('Pi-Hole image not found')
 
         requests.packages.urllib3.disable_warnings()
-
-        response = requests.get(self.base_url + '/rest/system/status', headers=self.headers, verify=False)
-        json_data = response.json()
-        self.my_device_id = json_data['myID']
-
-        response = requests.get(self.base_url + '/rest/system/config', headers=self.headers, verify=False)
-        json_data = response.json()
-
-        for device in json_data['devices']:
-            self.devices[device['deviceID']] = {'name': device['name']}
-
-        self.request_connections()
 
     def request_full_completion(self, lazy=False):
         for device_id in self.devices.keys():
@@ -56,7 +48,8 @@ class StatsSyncthing(Submodule):
             url = context.base_url + '/rest/db/completion'
             parameters = {'device': device_id}
 
-            response = requests.get(url, headers=context.headers, params=parameters, verify=False)
+            response = requests.get(
+                url, headers=context.headers, params=parameters, verify=False)
             json_data = response.json()
             with lock:
                 context.devices[device_id]['completion'] = json_data['completion']
@@ -81,17 +74,39 @@ class StatsSyncthing(Submodule):
 
                 self.devices[device_id]['paused'] = connection_data['connections'][device_id]['paused']
 
-    def service(self):
-        last_id = 0
+    def lazy_init(self):
+        while True:
+            try:
+                response = requests.get(
+                    self.base_url + '/rest/system/status', headers=self.headers, verify=False)
+                json_data = response.json()
+                self.my_device_id = json_data['myID']
 
+                response = requests.get(
+                    self.base_url + '/rest/system/config', headers=self.headers, verify=False)
+                json_data = response.json()
+
+                for device in json_data['devices']:
+                    self.devices[device['deviceID']] = {'name': device['name']}
+
+                self.request_connections()
+            except ConnectionError:
+                time.sleep(15)
+
+    def service(self):
+        self.lazy_init()
+
+        last_id = 0
         while True:
             self.request_connections()
             self.request_full_completion(lazy=True)
 
             url = self.base_url + '/rest/events'
-            parameters = {'events': 'ItemStarted', 'since': last_id, 'limit': 1, 'timeout': 15}
+            parameters = {'events': 'ItemStarted',
+                          'since': last_id, 'limit': 1, 'timeout': 15}
 
-            response = requests.get(url , headers=self.headers, params=parameters, verify=False)
+            response = requests.get(
+                url, headers=self.headers, params=parameters, verify=False)
 
             json = response.json()
             if len(json) > 0:
@@ -107,7 +122,7 @@ class StatsSyncthing(Submodule):
 
     def sync_action(self, matrix):
         self.request_full_completion()
-        time.sleep(0.25) # wait for result of api request
+        time.sleep(0.25)  # wait for result of api request
 
         for device_id in self.devices:
             for i in range(6):
@@ -123,7 +138,6 @@ class StatsSyncthing(Submodule):
                 time.sleep(1)
 
                 self.request_completion(device_id)
-
 
         self.is_active = False
 
@@ -155,21 +169,31 @@ class StatsSyncthing(Submodule):
 
         device_name = self.devices[device_id]['name'][:6]
 
-        graphics.DrawText(swap, font, 3, font.baseline - 2, graphics.Color(50, 50, 180), " Syncthing")
-        graphics.DrawText(swap, font, 0, font.baseline * 2, graphics.Color(120, 120, 120), device_name)
-        graphics.DrawText(swap, font2, 41, font.baseline * 2, graphics.Color(80, 100, 80), completion)
+        graphics.DrawText(swap, font, 3, font.baseline - 2,
+                          graphics.Color(50, 50, 180), " Syncthing")
+        graphics.DrawText(swap, font, 0, font.baseline * 2,
+                          graphics.Color(120, 120, 120), device_name)
+        graphics.DrawText(swap, font2, 41, font.baseline * 2,
+                          graphics.Color(80, 100, 80), completion)
 
         if self.devices[device_id]['connected'] and not self.devices[device_id]['paused'] and completion != '100%':
-            graphics.DrawText(swap, font, 0, font.baseline * 3 - 1, graphics.Color(20, 20, 120), "I")
-            graphics.DrawText(swap, font2, 8, font.baseline * 3 - 1, graphics.Color(50, 50, 170), need_items)
-            graphics.DrawText(swap, font, 38, font.baseline * 3 - 1, graphics.Color(100, 20, 20), "D")
-            graphics.DrawText(swap, font2, 47, font.baseline * 3 - 1, graphics.Color(170, 60, 60), need_delete)
+            graphics.DrawText(swap, font, 0, font.baseline *
+                              3 - 1, graphics.Color(20, 20, 120), "I")
+            graphics.DrawText(swap, font2, 8, font.baseline *
+                              3 - 1, graphics.Color(50, 50, 170), need_items)
+            graphics.DrawText(swap, font, 38, font.baseline *
+                              3 - 1, graphics.Color(100, 20, 20), "D")
+            graphics.DrawText(swap, font2, 47, font.baseline *
+                              3 - 1, graphics.Color(170, 60, 60), need_delete)
         elif self.devices[device_id]['paused']:
-            graphics.DrawText(swap, font, 0, font.baseline * 3 - 1, graphics.Color(150, 85, 0), "Paused")
+            graphics.DrawText(swap, font, 0, font.baseline *
+                              3 - 1, graphics.Color(150, 85, 0), "Paused")
         elif not self.devices[device_id]['connected']:
-            graphics.DrawText(swap, font, 0, font.baseline * 3 - 1, graphics.Color(120, 10, 0), "Offline")
+            graphics.DrawText(swap, font, 0, font.baseline *
+                              3 - 1, graphics.Color(120, 10, 0), "Offline")
         elif completion == '100%':
-            graphics.DrawText(swap, font, 0, font.baseline * 3 - 1, graphics.Color(10, 120, 10), "Up to Date")
+            graphics.DrawText(swap, font, 0, font.baseline *
+                              3 - 1, graphics.Color(10, 120, 10), "Up to Date")
 
         matrix.SwapOnVSync(swap)
         matrix.SetImage(self.image, unsafe=False)
