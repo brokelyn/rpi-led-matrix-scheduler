@@ -169,7 +169,7 @@ class StatsSyncthing(Submodule):
                     self.request_completion(device_id)
         else:
             self.display_offline(matrix)
-            time.sleep(5)
+            time.sleep(7)
 
     def display_offline(self, matrix):
         swap = matrix.CreateFrameCanvas()
@@ -179,9 +179,9 @@ class StatsSyncthing(Submodule):
 
         graphics.DrawText(swap, font, 3, font.baseline - 2,
                           graphics.Color(50, 50, 180), " Syncthing")
-        graphics.DrawText(swap, font, 3, font.baseline * 2,
+        graphics.DrawText(swap, font, 0, font.baseline * 2,
                           graphics.Color(120, 120, 120), settings.SYNCTHING_IP)
-        graphics.DrawText(swap, font, 15, font.baseline * 3 - 1,
+        graphics.DrawText(swap, font, 11, font.baseline * 3 - 1,
                           graphics.Color(200, 25, 25), "Offline")
 
         matrix.SwapOnVSync(swap)
