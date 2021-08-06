@@ -21,6 +21,7 @@ class StatsSyncthing(Submodule):
         self.is_active = False
         self.devices = {}
         self.my_device_id = None
+        self.syncthing_online = False
 
         self.is_init_done = False
 
@@ -48,13 +49,18 @@ class StatsSyncthing(Submodule):
             url = context.base_url + '/rest/db/completion'
             parameters = {'device': device_id}
 
-            response = requests.get(
-                url, headers=context.headers, params=parameters, verify=False)
-            json_data = response.json()
-            with lock:
-                context.devices[device_id]['completion'] = json_data['completion']
-                context.devices[device_id]['needItems'] = json_data['needItems']
-                context.devices[device_id]['needDeletes'] = json_data['needDeletes']
+            try:
+                response = requests.get(
+                    url, headers=context.headers, params=parameters, verify=False)
+                json_data = response.json()
+
+                with lock:
+                    context.devices[device_id]['completion'] = json_data['completion']
+                    context.devices[device_id]['needItems'] = json_data['needItems']
+                    context.devices[device_id]['needDeletes'] = json_data['needDeletes']
+                self.syncthing_online = True
+            except ConnectionError:
+                self.syncthing_online = False
 
         thread = threading.Thread(target=request, args=(self, device_id, ))
         thread.start()
@@ -63,16 +69,20 @@ class StatsSyncthing(Submodule):
     def request_connections(self):
         url = self.base_url + '/rest/system/connections'
 
-        response = requests.get(url, headers=self.headers, verify=False)
-        connection_data = response.json()
-        with lock:
-            for device_id in connection_data['connections']:
-                if device_id != self.my_device_id:
-                    self.devices[device_id]['connected'] = connection_data['connections'][device_id]['connected']
-                else:
-                    self.devices[device_id]['connected'] = True
+        try:
+            response = requests.get(url, headers=self.headers, verify=False)
+            connection_data = response.json()
+            with lock:
+                for device_id in connection_data['connections']:
+                    if device_id != self.my_device_id:
+                        self.devices[device_id]['connected'] = connection_data['connections'][device_id]['connected']
+                    else:
+                        self.devices[device_id]['connected'] = True
 
-                self.devices[device_id]['paused'] = connection_data['connections'][device_id]['paused']
+                    self.devices[device_id]['paused'] = connection_data['connections'][device_id]['paused']
+            self.syncthing_online = True
+        except ConnectionError:
+            self.syncthing_online = False
 
     def lazy_init(self):
         while True:
@@ -90,6 +100,7 @@ class StatsSyncthing(Submodule):
                     self.devices[device['deviceID']] = {'name': device['name']}
 
                 self.request_connections()
+                self.syncthing_online = True
             except ConnectionError:
                 time.sleep(15)
 
@@ -97,28 +108,34 @@ class StatsSyncthing(Submodule):
         self.lazy_init()
 
         last_id = 0
+        url = self.base_url + '/rest/events'
         while True:
             self.request_connections()
             self.request_full_completion(lazy=True)
 
-            url = self.base_url + '/rest/events'
             parameters = {'events': 'ItemStarted',
                           'since': last_id, 'limit': 1, 'timeout': 15}
 
-            response = requests.get(
-                url, headers=self.headers, params=parameters, verify=False)
+            try:
+                response = requests.get(
+                    url, headers=self.headers, params=parameters, verify=False)
 
-            json = response.json()
-            if len(json) > 0:
-                last_id = json[len(json) - 1]['id']
-                if not self.is_active:
-                    self.is_active = True
-                    self.add_event(2, self.sync_action)
+                self.syncthing_online = True
 
-                    self.request_full_completion(lazy=True)
+                json = response.json()
+                if len(json) > 0:
+                    last_id = json[len(json) - 1]['id']
+                    if not self.is_active:
+                        self.is_active = True
+                        self.add_event(2, self.sync_action)
 
-                    while self.is_active:
-                        time.sleep(1)
+                        self.request_full_completion(lazy=True)
+
+                        while self.is_active:
+                            time.sleep(1)
+            except ConnectionError:
+                self.syncthing_online = False
+                time.sleep(15)
 
     def sync_action(self, matrix):
         self.request_full_completion()
@@ -144,11 +161,31 @@ class StatsSyncthing(Submodule):
     def sync_status(self, matrix):
         self.request_full_completion()
 
-        for device_id in self.devices:
-            for i in range(3):
-                self.display_status(matrix, device_id)
-                time.sleep(1)
-                self.request_completion(device_id)
+        if self.syncthing_online:
+            for device_id in self.devices:
+                for i in range(3):
+                    self.display_status(matrix, device_id)
+                    time.sleep(1)
+                    self.request_completion(device_id)
+        else:
+            self.display_offline(matrix)
+            time.sleep(5)
+
+    def display_offline(self, matrix):
+        swap = matrix.CreateFrameCanvas()
+
+        font = graphics.Font()
+        font.LoadFont(settings.FONT_PATH + "6x13B.bdf")
+
+        graphics.DrawText(swap, font, 3, font.baseline - 2,
+                          graphics.Color(50, 50, 180), " Syncthing")
+        graphics.DrawText(swap, font, 3, font.baseline * 2,
+                          graphics.Color(120, 120, 120), settings.SYNCTHING_IP)
+        graphics.DrawText(swap, font, 15, font.baseline * 3 - 1,
+                          graphics.Color(200, 25, 25), "Offline")
+
+        matrix.SwapOnVSync(swap)
+        matrix.SetImage(self.image, unsafe=False)
 
     def display_status(self, matrix, device_id):
         try:
