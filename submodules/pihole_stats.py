@@ -22,11 +22,6 @@ class PiholeStats(Submodule):
             return
 
         for i in range(4):
-            response = requests.get("http://" + settings.PI_HOLE_IP + "/admin/api.php?summaryRaw")
-            json = response.json()
-            queries_today = json['dns_queries_today']
-            percentage_blocked = int(json['ads_percentage_today'])
-
             swap = matrix.CreateFrameCanvas()
 
             font = graphics.Font()
@@ -35,10 +30,20 @@ class PiholeStats(Submodule):
             font2.LoadFont(settings.FONT_PATH + "6x13.bdf")
 
             graphics.DrawText(swap, font, 5, font.baseline - 2, graphics.Color(120, 120, 120), " Pi Hole")
-            graphics.DrawText(swap, font, 0, font.baseline * 2 - 2, graphics.Color(0, 180, 120), "Query")
-            graphics.DrawText(swap, font2, 35, font.baseline * 2 - 2, graphics.Color(0, 180, 20), str(queries_today))
-            graphics.DrawText(swap, font, 0, font.baseline * 3 - 1, graphics.Color(140, 10, 10), "Blocked")
-            graphics.DrawText(swap, font2, 47, font.baseline * 3 - 1, graphics.Color(120, 0, 0), str(percentage_blocked) + '%')
+
+            try:
+                response = requests.get("http://" + settings.PI_HOLE_IP + "/admin/api.php?summaryRaw")
+                json = response.json()
+                queries_today = json['dns_queries_today']
+                percentage_blocked = int(json['ads_percentage_today'])
+
+                graphics.DrawText(swap, font, 0, font.baseline * 2 - 2, graphics.Color(0, 180, 120), "Query")
+                graphics.DrawText(swap, font2, 35, font.baseline * 2 - 2, graphics.Color(0, 180, 20), str(queries_today))
+                graphics.DrawText(swap, font, 0, font.baseline * 3 - 1, graphics.Color(140, 10, 10), "Blocked")
+                graphics.DrawText(swap, font2, 47, font.baseline * 3 - 1, graphics.Color(120, 0, 0), str(percentage_blocked) + '%')
+
+            except requests.exceptions.ConnectionError:
+                graphics.DrawText(swap, font, 11, font.baseline * 3 - 1, graphics.Color(180, 10, 10), "Offline")
 
             matrix.SwapOnVSync(swap)
             matrix.SetImage(image.convert('RGB'), unsafe=False)
