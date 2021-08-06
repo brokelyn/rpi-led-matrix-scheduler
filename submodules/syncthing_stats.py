@@ -59,7 +59,7 @@ class StatsSyncthing(Submodule):
                     context.devices[device_id]['needItems'] = json_data['needItems']
                     context.devices[device_id]['needDeletes'] = json_data['needDeletes']
                 self.syncthing_online = True
-            except ConnectionError:
+            except requests.exceptions.ConnectionError:
                 self.syncthing_online = False
 
         thread = threading.Thread(target=request, args=(self, device_id, ))
@@ -81,7 +81,7 @@ class StatsSyncthing(Submodule):
 
                     self.devices[device_id]['paused'] = connection_data['connections'][device_id]['paused']
             self.syncthing_online = True
-        except ConnectionError:
+        except requests.exceptions.ConnectionError:
             self.syncthing_online = False
 
     def lazy_init(self):
@@ -101,7 +101,7 @@ class StatsSyncthing(Submodule):
 
                 self.request_connections()
                 self.syncthing_online = True
-            except ConnectionError:
+            except requests.exceptions.ConnectionError:
                 time.sleep(15)
 
     def service(self):
@@ -133,7 +133,7 @@ class StatsSyncthing(Submodule):
 
                         while self.is_active:
                             time.sleep(1)
-            except ConnectionError:
+            except requests.exceptions.ConnectionError:
                 self.syncthing_online = False
                 time.sleep(15)
 
