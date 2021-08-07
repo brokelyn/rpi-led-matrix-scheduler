@@ -101,6 +101,7 @@ class StatsSyncthing(Submodule):
 
                 self.request_connections()
                 self.syncthing_online = True
+                return
             except requests.exceptions.ConnectionError:
                 time.sleep(15)
 
