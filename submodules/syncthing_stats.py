@@ -178,9 +178,12 @@ class StatsSyncthing(Submodule):
         font = graphics.Font()
         font.LoadFont(settings.FONT_PATH + "6x13B.bdf")
 
+        font2 = graphics.Font()
+        font2.LoadFont(settings.FONT_PATH + "4x6.bdf")
+
         graphics.DrawText(swap, font, 3, font.baseline - 2,
                           graphics.Color(50, 50, 180), " Syncthing")
-        graphics.DrawText(swap, font, 0, font.baseline * 2,
+        graphics.DrawText(swap, font2, 0, font.baseline * 2,
                           graphics.Color(120, 120, 120), settings.SYNCTHING_IP)
         graphics.DrawText(swap, font, 11, font.baseline * 3 - 1,
                           graphics.Color(200, 25, 25), "Offline")
