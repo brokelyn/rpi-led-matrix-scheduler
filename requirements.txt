@@ -1,4 +1,4 @@
 requests==2.25.1
 ping3==2.7.0
-Pillow==8.3.2
+Pillow==9.0.0
 psutil==5.8.0
