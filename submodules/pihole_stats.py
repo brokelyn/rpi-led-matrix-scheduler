@@ -30,7 +30,7 @@ class PiholeStats(Submodule):
             graphics.DrawText(swap, self.font, 5, self.font.baseline - 2, graphics.Color(120, 120, 120), " Pi Hole")
 
             try:
-                response = requests.get("http://" + settings.PI_HOLE_IP + "/admin/api.php?summaryRaw")
+                response = requests.get("http://" + settings.PI_HOLE_IP + "/admin/api.php?summaryRaw", timeout=3)
                 json = response.json()
                 queries_today = json['dns_queries_today']
                 percentage_blocked = int(json['ads_percentage_today'])
@@ -40,7 +40,7 @@ class PiholeStats(Submodule):
                 graphics.DrawText(swap, self.font, 0, self.font.baseline * 3 - 1, graphics.Color(140, 10, 10), "Blocked")
                 graphics.DrawText(swap, self.font2, 47, self.font.baseline * 3 - 1, graphics.Color(120, 0, 0), str(percentage_blocked) + '%')
 
-            except requests.exceptions.ConnectionError:
+            except requests.exceptions.RequestException:
                 graphics.DrawText(swap, self.font, 11, self.font.baseline * 3 - 1, graphics.Color(180, 10, 10), "Offline")
 
             if self.image is not None:

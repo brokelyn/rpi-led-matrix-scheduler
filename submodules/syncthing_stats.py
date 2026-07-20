@@ -56,7 +56,7 @@ class StatsSyncthing(Submodule):
 
             try:
                 response = requests.get(
-                    url, headers=context.headers, params=parameters, verify=False)
+                    url, headers=context.headers, params=parameters, verify=False, timeout=5)
                 json_data = response.json()
 
                 with lock:
@@ -64,7 +64,7 @@ class StatsSyncthing(Submodule):
                     context.devices[device_id]['needItems'] = json_data['needItems']
                     context.devices[device_id]['needDeletes'] = json_data['needDeletes']
                 self.syncthing_online = True
-            except requests.exceptions.ConnectionError:
+            except requests.exceptions.RequestException:
                 self.syncthing_online = False
 
         thread = threading.Thread(target=request, args=(self, device_id, ))
@@ -75,7 +75,7 @@ class StatsSyncthing(Submodule):
         url = self.base_url + '/rest/system/connections'
 
         try:
-            response = requests.get(url, headers=self.headers, verify=False)
+            response = requests.get(url, headers=self.headers, verify=False, timeout=5)
             connection_data = response.json()
             with lock:
                 for device_id in connection_data['connections']:
@@ -86,19 +86,19 @@ class StatsSyncthing(Submodule):
 
                     self.devices[device_id]['paused'] = connection_data['connections'][device_id]['paused']
             self.syncthing_online = True
-        except requests.exceptions.ConnectionError:
+        except requests.exceptions.RequestException:
             self.syncthing_online = False
 
     def lazy_init(self):
         while True:
             try:
                 response = requests.get(
-                    self.base_url + '/rest/system/status', headers=self.headers, verify=False)
+                    self.base_url + '/rest/system/status', headers=self.headers, verify=False, timeout=5)
                 json_data = response.json()
                 self.my_device_id = json_data['myID']
 
                 response = requests.get(
-                    self.base_url + '/rest/system/config', headers=self.headers, verify=False)
+                    self.base_url + '/rest/system/config', headers=self.headers, verify=False, timeout=5)
                 json_data = response.json()
 
                 for device in json_data['devices']:
@@ -107,7 +107,7 @@ class StatsSyncthing(Submodule):
                 self.request_connections()
                 self.syncthing_online = True
                 return
-            except requests.exceptions.ConnectionError:
+            except requests.exceptions.RequestException:
                 time.sleep(15)
 
     def service(self):
@@ -123,8 +123,10 @@ class StatsSyncthing(Submodule):
                           'since': last_id, 'limit': 1, 'timeout': 15}
 
             try:
+                # the events endpoint long-polls for up to 15s, so the
+                # socket timeout has to be longer than that
                 response = requests.get(
-                    url, headers=self.headers, params=parameters, verify=False)
+                    url, headers=self.headers, params=parameters, verify=False, timeout=20)
 
                 self.syncthing_online = True
 
@@ -139,7 +141,7 @@ class StatsSyncthing(Submodule):
 
                         while self.is_active:
                             time.sleep(1)
-            except requests.exceptions.ConnectionError:
+            except requests.exceptions.RequestException:
                 self.syncthing_online = False
                 time.sleep(15)
 
