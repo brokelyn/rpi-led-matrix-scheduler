@@ -7,6 +7,11 @@ _BASE_PATH = Path(__file__).resolve().parent
 FONT_PATH = str(_BASE_PATH / 'fonts') + os.sep
 IMAGES_PATH = str(_BASE_PATH / 'images') + os.sep
 
+# modules.conf lives next to the code; the scheduler keeps it complete
+# and the web interface edits it
+MODULES_CONF = str(_BASE_PATH / 'modules.conf')
+WEB_UI_PORT = int(os.environ.get('LEDSTATION_WEB_PORT', '8080'))
+
 # Runtime Vars
 LOADED_MODULES = 0
 RUNNING_SERVICES = 0

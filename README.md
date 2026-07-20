@@ -109,6 +109,25 @@ In the `settings` file their are constants pointing on the required devices.
     - start the application with the command `sudo python3 scheduler.py`
     - when using environment variables the command `sudo -E python3 scheduler.py` is needed to keep the user environment variables
     - `sudo` is required by the [rpi-rgb-led-matrix]('https://github.com/hzeller/rpi-rgb-led-matrix') library and the `ping3` package
+    - this also starts the web interface (see below); set `LEDSTATION_NO_WEB=1` to disable that
+
+## Enabling / disabling modules
+
+Which modules run is controlled by `modules.conf` (created automatically on first start,
+one `ModuleName = on/off` line per module). There are two ways to change it:
+
+- **Web interface**: `scheduler.py` automatically starts a small web server on port `8080`
+  (change with the `LEDSTATION_WEB_PORT` environment variable). Open `http://<pi-ip>:8080`
+  from any device on the network and flip the toggles. It can also be run on its own with
+  `python3 webconfig.py`.
+- **By hand**: edit `modules.conf` directly.
+
+The scheduler watches the file and applies changes without a restart - a running animation
+finishes first, so changes take effect within about 30 seconds. Modules that are `off` at
+startup are never loaded (their background services don't run at all); modules disabled at
+runtime stop being scheduled. The web server only ever reads and writes `modules.conf`,
+it never talks to the display process, and it is plain unauthenticated HTTP - meant for a
+trusted home network only.
 
 ### Autostart
 

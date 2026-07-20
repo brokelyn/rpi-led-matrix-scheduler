@@ -1,11 +1,15 @@
 from init import init_leds
 import itertools
 import logging
+import os
+import subprocess
+import sys
 import threading
 import time
 
 import inspect
 import types
+import module_config
 import settings
 from submodule import Submodule
 from submodules import *
@@ -15,10 +19,11 @@ log = logging.getLogger(__name__)
 
 class QObject:
 
-    def __init__(self, priority, id, fnc):
+    def __init__(self, priority, id, fnc, module=None):
         self.base_prio = priority
         self.curr_prio = priority
         self.call_fnc = fnc
+        self.module = module
 
         self.id = id
 
@@ -29,18 +34,29 @@ class QObject:
 class Scheduler:
 
     def __init__(self):
-        # one lock guards both lists; add_event/add_loop/rmv_loop are called
-        # from service threads while the scheduler thread picks the next item
+        # one lock guards the queues, the enabled set and the loop
+        # registrations; add_event/add_loop/rmv_loop are called from service
+        # threads while the scheduler thread picks the next item
         self._lock = threading.Lock()
         self._id_counter = itertools.count(1)
         self.loops = []
         self.events = []
 
-        self.submodules = self.load_submodules()
-        settings.LOADED_MODULES = len(self.submodules)
-        log.info("Done loading modules! %d modules were loaded.", len(self.submodules))
+        self.instances = {}   # module name -> instance (once created)
+        self.loop_regs = {}   # module name -> {loop id: (priority, fnc)}
+        self.enabled = set()
+        self.services = []
 
-        self.services = self.init_submodule_services()
+        self.module_classes = self.discover_submodules()
+        conf = module_config.ensure(settings.MODULES_CONF, self.module_classes)
+        self._chown_conf_to_sudo_user()
+        self._conf_mtime = self._conf_stat()
+        self.apply_config(conf)
+
+        settings.LOADED_MODULES = len(self.instances)
+        log.info("Done loading modules! %d of %d modules are enabled.",
+                 len(self.instances), len(self.module_classes))
+
         settings.RUNNING_SERVICES = len(self.services)
         log.info("Done loading services! %d services are running.", len(self.services))
 
@@ -48,6 +64,7 @@ class Scheduler:
 
     def schedule(self):
         while True:
+            self.check_config()
             self.next()
 
     def next(self):
@@ -78,44 +95,122 @@ class Scheduler:
         except Exception:
             log.exception("Module function %s crashed", fnc)
 
-    def load_submodules(self):
-        instances = []
+    # ---------------------------------------------------- module lifecycle
+
+    def discover_submodules(self):
+        classes = {}
         for name, val in globals().items():
             if isinstance(val, types.ModuleType) and "submodules" in val.__name__:
                 log.info("Found submodule %s", val.__name__)
                 for _, cls in inspect.getmembers(val, inspect.isclass):
-                    if not (issubclass(cls, Submodule) and cls is not Submodule
+                    if (issubclass(cls, Submodule) and cls is not Submodule
                             and cls.__module__ == val.__name__):
-                        continue
-                    try:
-                        instances.append(cls(self.add_loop, self.rmv_loop, self.add_event))
-                    except Exception:
-                        log.exception("Failed to initialise module %s - skipping it", cls.__name__)
-        return instances
+                        classes[cls.__name__] = cls
+        return classes
 
-    def init_submodule_services(self):
-        services = []
-        for mod in self.submodules:
-            service = getattr(mod, "service", None)
-            if not callable(service):
-                continue
+    def apply_config(self, conf):
+        for name in self.module_classes:
+            if conf.get(name, True):
+                self.enable_module(name)
+            else:
+                self.disable_module(name)
+
+    def enable_module(self, name):
+        with self._lock:
+            if name in self.enabled:
+                return
+            self.enabled.add(name)
+            if name in self.instances:
+                # the module already exists: put its loops back
+                for id, (priority, fnc) in self.loop_regs.get(name, {}).items():
+                    self.loops.append(QObject(priority, id, fnc, name))
+                log.info("Enabled module %s", name)
+                return
+        self._instantiate(name)
+
+    def disable_module(self, name):
+        with self._lock:
+            if name not in self.enabled:
+                return
+            self.enabled.discard(name)
+            # loop_regs is kept so enable_module can restore the loops
+            self.loops = [obj for obj in self.loops if obj.module != name]
+            self.events = [obj for obj in self.events if obj.module != name]
+        log.info("Disabled module %s", name)
+
+    def _instantiate(self, name):
+        cls = self.module_classes[name]
+
+        def tagged(fnc):
+            return lambda priority, display_fnc: fnc(priority, display_fnc, name)
+
+        try:
+            instance = cls(tagged(self.add_loop), self.rmv_loop, tagged(self.add_event))
+        except Exception:
+            log.exception("Failed to initialise module %s - skipping it", name)
+            with self._lock:
+                self.enabled.discard(name)
+            return
+
+        self.instances[name] = instance
+        log.info("Enabled module %s", name)
+
+        service = getattr(instance, "service", None)
+        if callable(service):
             thread = threading.Thread(target=service, daemon=True,
-                                      name=type(mod).__name__ + "-service")
+                                      name=name + "-service")
             thread.start()
-            services.append(thread)
-            log.info("Loaded service of module: %s", type(mod).__name__)
-        return services
+            self.services.append(thread)
+            log.info("Loaded service of module: %s", name)
 
-    def add_event(self, priority, display_fnc):
-        return self._add(self.events, priority, display_fnc)
+    # ------------------------------------------------------- config file
 
-    def add_loop(self, priority, display_fnc):
-        return self._add(self.loops, priority, display_fnc)
+    def _conf_stat(self):
+        try:
+            return os.path.getmtime(settings.MODULES_CONF)
+        except OSError:
+            return None
 
-    def _add(self, queue, priority, display_fnc):
+    def check_config(self):
+        mtime = self._conf_stat()
+        if mtime is None or mtime == self._conf_mtime:
+            return
+        self._conf_mtime = mtime
+        try:
+            conf = module_config.read(settings.MODULES_CONF)
+        except Exception:
+            log.exception("Ignoring invalid modules.conf")
+            return
+        log.info("modules.conf changed - applying")
+        self.apply_config(conf)
+
+    def _chown_conf_to_sudo_user(self):
+        # the scheduler usually runs as root (gpio) but the web interface
+        # runs as the sudo user; hand the file over so it stays editable
+        if hasattr(os, 'geteuid') and os.geteuid() == 0 and os.environ.get('SUDO_UID'):
+            uid = int(os.environ['SUDO_UID'])
+            gid = int(os.environ.get('SUDO_GID', uid))
+            try:
+                os.chown(settings.MODULES_CONF, uid, gid)
+            except OSError:
+                log.exception("Could not chown modules.conf")
+
+    # ------------------------------------------------------------ queues
+
+    def add_event(self, priority, display_fnc, module=None):
+        return self._add(self.events, priority, display_fnc, module)
+
+    def add_loop(self, priority, display_fnc, module=None):
+        return self._add(self.loops, priority, display_fnc, module)
+
+    def _add(self, queue, priority, display_fnc, module=None):
         id = next(self._id_counter)
         with self._lock:
-            queue.append(QObject(priority, id, display_fnc))
+            if module is not None and module not in self.enabled:
+                return None  # registrations from disabled modules are dropped
+            queue.append(QObject(priority, id, display_fnc, module))
+            if module is not None and queue is self.loops:
+                self.loop_regs.setdefault(module, {})[id] = (priority, display_fnc)
         return id
 
     def rmv_loop(self, id):
@@ -123,16 +218,53 @@ class Scheduler:
             for obj in self.loops:
                 if obj.id == id:
                     self.loops.remove(obj)
+                    if obj.module is not None:
+                        self.loop_regs.get(obj.module, {}).pop(id, None)
+                    return
+            # the loop may only exist as a registration of a disabled module
+            for regs in self.loop_regs.values():
+                if id in regs:
+                    del regs[id]
                     return
         raise LookupError("Can't find ID for loop function!")
+
+
+def start_web_ui():
+    if os.environ.get('LEDSTATION_NO_WEB'):
+        return None
+
+    cmd = [sys.executable,
+           os.path.join(os.path.dirname(os.path.abspath(__file__)), 'webconfig.py')]
+
+    # started via sudo the web server has no reason to stay root
+    preexec = None
+    if hasattr(os, 'geteuid') and os.geteuid() == 0 and os.environ.get('SUDO_UID'):
+        uid = int(os.environ['SUDO_UID'])
+        gid = int(os.environ.get('SUDO_GID', uid))
+
+        def preexec():
+            os.setgid(gid)
+            os.setuid(uid)
+
+    try:
+        proc = subprocess.Popen(cmd, preexec_fn=preexec)
+    except OSError:
+        log.exception("Could not start web interface - continuing without it")
+        return None
+    log.info("Web interface started on port %d (pid %d).", settings.WEB_UI_PORT, proc.pid)
+    return proc
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s [%(threadName)s] %(message)s")
     scheduler = Scheduler()
+    web_ui = start_web_ui()
     try:
         scheduler.schedule()
     except KeyboardInterrupt:
         scheduler.matrix.Clear()
         log.info("Shutting down.")
+    finally:
+        if web_ui:
+            web_ui.terminate()

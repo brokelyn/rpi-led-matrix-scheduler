@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LEDSTATION &middot; CONTROL</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230b0a08'/%3E%3Ccircle cx='5' cy='8' r='2' fill='%23ffb300'/%3E%3Ccircle cx='11' cy='8' r='2' fill='%23ffb300' opacity='.35'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0b0a08;
+    --bezel: #17130c;
+    --bezel-edge: #2a2214;
+    --panel: #0d0a05;
+    --row: #131008;
+    --row-edge: #241d12;
+    --amber: #ffb300;
+    --amber-dim: rgba(255, 179, 0, .55);
+    --green: #4eff7a;
+    --red: #ff4d3d;
+    --text: #e8dcc3;
+    --text-dim: #8d8168;
+    --text-faint: #55503f;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { background: var(--bg); }
+
+  body {
+    font-family: var(--mono);
+    color: var(--text);
+    min-height: 100vh;
+    background:
+      radial-gradient(120% 90% at 50% -10%, rgba(255, 179, 0, .06), transparent 55%),
+      var(--bg);
+    display: flex;
+    justify-content: center;
+    padding: clamp(14px, 4vw, 40px) clamp(12px, 4vw, 24px) 60px;
+  }
+
+  /* faint scanlines over everything, like looking at the device up close */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom, transparent 0 2px, rgba(0, 0, 0, .22) 2px 3px);
+    mix-blend-mode: multiply;
+  }
+
+  .wrap { width: 100%; max-width: 560px; }
+
+  /* ---------------------------------------------------- the LED panel */
+
+  .bezel {
+    position: relative;
+    background: linear-gradient(160deg, #1c1710, var(--bezel) 40%, #0f0c07);
+    border: 1px solid var(--bezel-edge);
+    border-radius: 10px;
+    padding: 14px 16px;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, .05),
+      0 14px 40px rgba(0, 0, 0, .55);
+  }
+
+  .bezel .screw {
+    position: absolute;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #4d4433, #16120a 70%);
+    box-shadow: inset 0 0 2px #000;
+  }
+  .screw.tl { top: 6px; left: 6px; }
+  .screw.tr { top: 6px; right: 6px; }
+  .screw.bl { bottom: 6px; left: 6px; }
+  .screw.br { bottom: 6px; right: 6px; }
+
+  #marquee {
+    display: block;
+    width: 100%;
+    height: 88px;
+    background: var(--panel);
+    border-radius: 4px;
+    box-shadow: inset 0 2px 12px rgba(0, 0, 0, .9);
+  }
+
+  /* ------------------------------------------------------ module list */
+
+  .list-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin: 26px 2px 10px;
+    font-size: 11px;
+    letter-spacing: .18em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+  .list-head .count { color: var(--amber); }
+
+  .module {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: linear-gradient(180deg, #161209, var(--row));
+    border: 1px solid var(--row-edge);
+    border-radius: 8px;
+    padding: 13px 15px;
+    margin-bottom: 8px;
+    opacity: 0;
+    transform: translateY(8px);
+    animation: rise .4s ease forwards;
+  }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+
+  .led {
+    flex: none;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #2a2415;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, .8);
+    transition: background .25s, box-shadow .25s;
+  }
+  .module.on .led {
+    background: var(--green);
+    box-shadow: 0 0 8px 2px rgba(78, 255, 122, .45),
+                inset 0 0 2px rgba(255, 255, 255, .6);
+  }
+
+  .module .info { flex: 1; min-width: 0; }
+  .module .name {
+    font-size: 15px;
+    letter-spacing: .02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color .25s;
+  }
+  .module:not(.on) .name { color: var(--text-dim); }
+  .module .tag {
+    font-size: 10px;
+    letter-spacing: .22em;
+    color: var(--text-faint);
+    margin-top: 3px;
+    text-transform: uppercase;
+  }
+
+  /* industrial slide toggle */
+  .toggle {
+    flex: none;
+    position: relative;
+    width: 56px; height: 28px;
+    border: 1px solid #322a1a;
+    border-radius: 6px;
+    background: linear-gradient(180deg, #0a0805, #171208);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, .8);
+    cursor: pointer;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .toggle::before {           /* knob */
+    content: "";
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 24px; height: 22px;
+    border-radius: 4px;
+    background:
+      repeating-linear-gradient(90deg,
+        rgba(255, 255, 255, .07) 0 2px, transparent 2px 5px),
+      linear-gradient(180deg, #57503e, #2e2919);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, .6);
+    transition: transform .18s cubic-bezier(.4, 0, .2, 1), background-color .18s;
+  }
+  .toggle[aria-checked="true"]::before {
+    transform: translateX(27px);
+    background:
+      repeating-linear-gradient(90deg,
+        rgba(0, 0, 0, .18) 0 2px, transparent 2px 5px),
+      linear-gradient(180deg, #ffc63d, #cc8400);
+  }
+  .toggle:focus-visible { outline: 1px solid var(--amber); outline-offset: 2px; }
+  .toggle:active::before { filter: brightness(1.15); }
+
+  .module.err { animation: shake .3s; border-color: var(--red); }
+  @keyframes shake {
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+  }
+
+  .empty {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 12px;
+    letter-spacing: .08em;
+    line-height: 1.9;
+    padding: 40px 10px;
+    border: 1px dashed var(--row-edge);
+    border-radius: 8px;
+  }
+
+  /* ---------------------------------------------------- status strip */
+
+  .status {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 18px;
+    padding: 0 2px;
+    font-size: 10px;
+    letter-spacing: .2em;
+    color: var(--text-faint);
+    text-transform: uppercase;
+  }
+  .status .link::before {
+    content: "";
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-right: 7px;
+    background: var(--green);
+    box-shadow: 0 0 5px rgba(78, 255, 122, .6);
+    vertical-align: 1px;
+  }
+  .status.lost .link { color: var(--red); }
+  .status.lost .link::before {
+    background: var(--red);
+    box-shadow: 0 0 5px rgba(255, 77, 61, .6);
+    animation: blink 1s steps(2) infinite;
+  }
+  @keyframes blink { 50% { opacity: .2; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .module { animation: none; opacity: 1; transform: none; }
+    .toggle::before { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bezel">
+    <span class="screw tl"></span><span class="screw tr"></span>
+    <span class="screw bl"></span><span class="screw br"></span>
+    <canvas id="marquee" aria-label="LED panel preview"></canvas>
+  </div>
+
+  <div class="list-head">
+    <span>Modules</span>
+    <span id="count" class="count"></span>
+  </div>
+
+  <div id="modules"></div>
+
+  <div class="status" id="status">
+    <span class="link" id="link">Link ok</span>
+    <span>Applies within ~30 s</span>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ------------------------------------------------------------------ state */
+
+let modules = [];        // [{name, enabled}]
+let inflight = false;    // a toggle POST is running; pause polling
+
+const listEl  = document.getElementById("modules");
+const countEl = document.getElementById("count");
+const statusEl = document.getElementById("status");
+
+const pretty = name => name.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
+
+function render() {
+  countEl.textContent =
+    modules.filter(m => m.enabled).length + " / " + modules.length + " on";
+
+  if (!modules.length) {
+    listEl.innerHTML = '<div class="empty">NO MODULES REGISTERED YET<br>' +
+      "start the ledstation once and refresh</div>";
+    return;
+  }
+
+  listEl.innerHTML = "";
+  modules.forEach((m, i) => {
+    const row = document.createElement("div");
+    row.className = "module" + (m.enabled ? " on" : "");
+    row.style.animationDelay = (i * 55) + "ms";
+    row.innerHTML =
+      '<span class="led"></span>' +
+      '<span class="info"><div class="name"></div>' +
+      '<div class="tag">module ' + String(i + 1).padStart(2, "0") + "</div></span>" +
+      '<button class="toggle" role="switch" aria-checked="' + m.enabled + '"' +
+      ' aria-label="toggle module"></button>';
+    row.querySelector(".name").textContent = pretty(m.name);
+    row.querySelector(".toggle").addEventListener("click", () => toggle(m, row));
+    listEl.appendChild(row);
+  });
+  buildMarqueeText();
+}
+
+function applyState(list) {
+  const changed = JSON.stringify(list) !== JSON.stringify(modules);
+  modules = list;
+  if (changed) render();
+}
+
+async function refresh() {
+  if (inflight) return;
+  try {
+    const res = await fetch("/api/modules");
+    applyState((await res.json()).modules);
+    statusEl.classList.remove("lost");
+    document.getElementById("link").textContent = "Link ok";
+  } catch (e) {
+    statusEl.classList.add("lost");
+    document.getElementById("link").textContent = "Link lost";
+  }
+}
+
+async function toggle(m, row) {
+  if (inflight) return;
+  inflight = true;
+  const wanted = !m.enabled;
+  // optimistic flip
+  row.classList.toggle("on", wanted);
+  row.querySelector(".toggle").setAttribute("aria-checked", wanted);
+  try {
+    const res = await fetch("/api/toggle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: m.name, enabled: wanted })
+    });
+    if (!res.ok) throw new Error(res.status);
+    applyState((await res.json()).modules);
+  } catch (e) {
+    row.classList.toggle("on", m.enabled);   // revert
+    row.querySelector(".toggle").setAttribute("aria-checked", m.enabled);
+    row.classList.add("err");
+    setTimeout(() => row.classList.remove("err"), 400);
+  } finally {
+    inflight = false;
+  }
+}
+
+refresh();
+setInterval(() => { if (!document.hidden) refresh(); }, 4000);
+
+/* --------------------------------------------------- LED matrix marquee */
+/* classic 5x7 column font, bit 0 = top row - same idea as the real panel */
+
+const FONT = {
+  "A": [0x7e,0x11,0x11,0x11,0x7e], "B": [0x7f,0x49,0x49,0x49,0x36],
+  "C": [0x3e,0x41,0x41,0x41,0x22], "D": [0x7f,0x41,0x41,0x22,0x1c],
+  "E": [0x7f,0x49,0x49,0x49,0x41], "F": [0x7f,0x09,0x09,0x09,0x01],
+  "G": [0x3e,0x41,0x49,0x49,0x3a], "H": [0x7f,0x08,0x08,0x08,0x7f],
+  "I": [0x00,0x41,0x7f,0x41,0x00], "J": [0x20,0x40,0x41,0x3f,0x01],
+  "K": [0x7f,0x08,0x14,0x22,0x41], "L": [0x7f,0x40,0x40,0x40,0x40],
+  "M": [0x7f,0x02,0x0c,0x02,0x7f], "N": [0x7f,0x04,0x08,0x10,0x7f],
+  "O": [0x3e,0x41,0x41,0x41,0x3e], "P": [0x7f,0x09,0x09,0x09,0x06],
+  "Q": [0x3e,0x41,0x51,0x21,0x5e], "R": [0x7f,0x09,0x19,0x29,0x46],
+  "S": [0x46,0x49,0x49,0x49,0x31], "T": [0x01,0x01,0x7f,0x01,0x01],
+  "U": [0x3f,0x40,0x40,0x40,0x3f], "V": [0x1f,0x20,0x40,0x20,0x1f],
+  "W": [0x3f,0x40,0x38,0x40,0x3f], "X": [0x63,0x14,0x08,0x14,0x63],
+  "Y": [0x07,0x08,0x70,0x08,0x07], "Z": [0x61,0x51,0x49,0x45,0x43],
+  "0": [0x3e,0x51,0x49,0x45,0x3e], "1": [0x00,0x42,0x7f,0x40,0x00],
+  "2": [0x42,0x61,0x51,0x49,0x46], "3": [0x21,0x41,0x45,0x4b,0x31],
+  "4": [0x18,0x14,0x12,0x7f,0x10], "5": [0x27,0x45,0x45,0x45,0x39],
+  "6": [0x3c,0x4a,0x49,0x49,0x30], "7": [0x01,0x71,0x09,0x05,0x03],
+  "8": [0x36,0x49,0x49,0x49,0x36], "9": [0x06,0x49,0x49,0x29,0x1e],
+  " ": [0x00,0x00,0x00,0x00,0x00], "/": [0x20,0x10,0x08,0x04,0x02],
+  "-": [0x08,0x08,0x08,0x08,0x08], ".": [0x00,0x60,0x60,0x00,0x00],
+  ":": [0x00,0x36,0x36,0x00,0x00], "*": [0x14,0x08,0x3e,0x08,0x14]
+};
+
+const canvas = document.getElementById("marquee");
+const ctx = canvas.getContext("2d");
+const ROWS = 11;                // 7 font rows, vertically centered
+let cols = 0, pitch = 0, dpr = 1;
+let textCols = [];              // column bitmasks of the scrolled text
+let offset = 0, lastTs = 0;
+const reduceMotion =
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function buildMarqueeText() {
+  const on = modules.filter(m => m.enabled).map(m => m.name.toUpperCase());
+  let text = "LEDSTATION * " + on.length + "/" + modules.length + " ON * ";
+  text += on.length ? on.join(" * ") + " * " : "ALL QUIET * ";
+  textCols = [];
+  for (const ch of text) {
+    for (const col of (FONT[ch] || FONT["-"])) textCols.push(col);
+    textCols.push(0);           // 1 column spacing
+  }
+}
+
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  pitch = h / ROWS;
+  cols = Math.floor(w / pitch);
+}
+
+function drawFrame(ts) {
+  if (!lastTs) lastTs = ts;
+  if (!reduceMotion) offset += (ts - lastTs) * 0.022;  // dots per ms
+  lastTs = ts;
+
+  const total = textCols.length;
+  if (total && offset >= total) offset -= total;
+
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+
+  const xPad = (canvas.clientWidth - cols * pitch) / 2;
+  const r = pitch * 0.30;
+
+  for (let c = 0; c < cols; c++) {
+    const src = total ? (Math.floor(offset) + c) % total : -1;
+    const bits = src >= 0 ? textCols[src] : 0;
+    for (let row = 0; row < ROWS; row++) {
+      const litRow = row - 2;   // font occupies rows 2..8
+      const lit = litRow >= 0 && litRow < 7 && (bits >> litRow) & 1;
+      const x = xPad + c * pitch + pitch / 2;
+      const y = row * pitch + pitch / 2;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, 7);
+      if (lit) {
+        ctx.fillStyle = "#ffb300";
+        ctx.shadowColor = "rgba(255,179,0,.9)";
+        ctx.shadowBlur = pitch * 0.7;
+      } else {
+        ctx.fillStyle = "rgba(255,179,0,.055)";
+        ctx.shadowBlur = 0;
+      }
+      ctx.fill();
+    }
+  }
+  ctx.shadowBlur = 0;
+  requestAnimationFrame(drawFrame);
+}
+
+buildMarqueeText();
+resize();
+window.addEventListener("resize", () => { resize(); });
+requestAnimationFrame(drawFrame);
+</script>
+</body>
+</html>

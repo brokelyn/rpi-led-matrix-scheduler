@@ -124,3 +124,4 @@ dmypy.json
 
 # OS Stuff
 ._.DS_Store
+modules.conf
