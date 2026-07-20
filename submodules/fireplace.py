@@ -52,11 +52,20 @@ class _Torch:
 
 # drift picks the source cell below (x + drift), so extra +1 entries make the
 # flame lean left and extra -1 entries make it lean right - matching the tilt
-TORCHES = [
-    _Torch(24, 21, 25, 8, (-1, 0, 0, 1, 1)),    # left, leaning outwards
-    _Torch(31, 31, 23, 4, (-1, 0, 0, 0, 1)),    # center, upright and taller
-    _Torch(38, 41, 25, 8, (-1, -1, 0, 0, 1)),   # right, leaning outwards
-]
+def build_torches(spacing, height):
+    """spacing: outer tip distance from the center, height: how far the
+    center tip sits above the bottom edge. The outer torches sit two rows
+    lower and lean outwards by 3 px over their stick."""
+    center_tip = 31 - height
+    side_tip = min(29, center_tip + 2)
+    return [
+        _Torch(34 - spacing, 31 - spacing, side_tip,          # left, leaning outwards
+               max(1, side_tip - 17), (-1, 0, 0, 1, 1)),
+        _Torch(31, 31, center_tip,                            # center, upright and taller
+               max(1, center_tip - 19), (-1, 0, 0, 0, 1)),
+        _Torch(28 + spacing, 31 + spacing, side_tip,          # right, leaning outwards
+               max(1, side_tip - 17), (-1, -1, 0, 0, 1)),
+    ]
 
 
 class Fireplace(Submodule):
@@ -65,6 +74,8 @@ class Fireplace(Submodule):
         'priority': {'label': 'Priority', 'default': 4, 'min': 1.5, 'max': 10, 'step': 0.5},
         'embers':   {'label': 'Ember heat %', 'default': 100, 'min': 50, 'max': 100, 'step': 5},
         'flames':   {'label': 'Flame height', 'default': 3, 'min': 1, 'max': 4, 'step': 1},
+        'spacing':  {'label': 'Spacing px', 'default': 10, 'min': 4, 'max': 22, 'step': 1},
+        'height':   {'label': 'Height px', 'default': 8, 'min': 4, 'max': 14, 'step': 1},
         'duration': {'label': 'Duration s', 'default': 17, 'min': 5, 'max': 120, 'step': 1},
         'fps':      {'label': 'FPS', 'default': 15, 'min': 6, 'max': 30, 'step': 1},
     }
@@ -91,7 +102,8 @@ class Fireplace(Submodule):
     def display_fireplace(self, matrix):
         swap = self.get_canvas(matrix)
         opts = self.options
-        heats = [[[0] * FIRE_W for _ in range(torch.height)] for torch in TORCHES]
+        geometry = None
+        torches = heats = None
 
         for _ in range(int(opts['duration'] * opts['fps'])):
             frame_start = time.perf_counter()
@@ -99,8 +111,17 @@ class Fireplace(Submodule):
             # flames maps to cooling: taller flames cool slower on the way up
             extra_cooling = 3 - int(opts['flames'])
 
+            # rebuild the torches when spacing/height change, so those
+            # sliders apply live like the other fire settings
+            key = (int(opts['spacing']), int(opts['height']))
+            if key != geometry:
+                geometry = key
+                torches = build_torches(*key)
+                heats = [[[0] * FIRE_W for _ in range(torch.height)]
+                         for torch in torches]
+
             swap.Clear()
-            for torch, heat in zip(TORCHES, heats):
+            for torch, heat in zip(torches, heats):
                 Fireplace.step_fire(heat, torch.drift, ember_scale, extra_cooling)
 
                 for x, y, (r, g, b) in torch.stick:
