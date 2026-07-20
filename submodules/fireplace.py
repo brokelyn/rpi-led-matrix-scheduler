@@ -1,21 +1,8 @@
 import time
 import random
-from PIL import Image
 from submodule import Submodule
-import settings
 
-# The hearth opening of the background image: display row y -> (x0, x1) inclusive.
-# Everything inside is animated fire, everything outside stays static background.
-FIRE_ROWS = {11: (24, 35), 12: (22, 37)}
-for _y in range(13, 22):
-    FIRE_ROWS[_y] = (21, 38)
-
-FIRE_TOP = min(FIRE_ROWS)
-FIRE_LEFT = min(x0 for x0, _ in FIRE_ROWS.values())
-FIRE_WIDTH = max(x1 for _, x1 in FIRE_ROWS.values()) - FIRE_LEFT + 1
-FIRE_HEIGHT = max(FIRE_ROWS) - FIRE_TOP + 1
-
-# low heat is transparent (the dark hearth shows), the hottest values are white
+# low heat is transparent (the black background shows), the hottest values are white
 PALETTE = [
     None,
     None, None, (105, 22, 5), (135, 28, 6),
@@ -25,17 +12,51 @@ PALETTE = [
 ]
 MAX_HEAT = len(PALETTE) - 1
 
-DECAY = (0, 1, 1, 2, 2, 2, 2, 2, 2, 3)  # avg 1.7 heat loss per row keeps flames below the arch
-DRIFT = (-1, 0, 0, 0, 1)
+DECAY = (0, 0, 1, 1, 1, 1, 1, 2, 2, 3)  # avg 1.2 heat loss per row -> tall flames
 
-# bell-shaped ember bed: full heat in the middle of the hearth, low at the edges
-_CENTER = (FIRE_WIDTH - 1) / 2
+# each torch runs its own small fire grid, centered over the torch head
+FIRE_W = 13
+_CENTER = (FIRE_W - 1) / 2
+
+# bell seed: full heat over the torch head, nothing at the grid edges, so the
+# flame starts as a fat tongue and only widens further by drifting upwards
 SEED_MAX = []
 EDGE_COOLING = []
-for _x in range(FIRE_WIDTH):
-    _d = abs(_x - _CENTER) / _CENTER
-    SEED_MAX.append(round(MAX_HEAT * (0.3 + 0.7 * (1 - _d * _d))))
-    EDGE_COOLING.append(1 if _d > 0.7 else 0)
+for _x in range(FIRE_W):
+    _d = abs(_x - _CENTER) / 4.0
+    SEED_MAX.append(round(MAX_HEAT * max(0.0, 1 - _d * _d)))
+    EDGE_COOLING.append(1 if _d > 1 else 0)
+
+WOOD = (96, 56, 18)
+WRAP = (156, 100, 36)   # the cloth-wrapped head the flame sits on
+
+
+class _Torch:
+
+    def __init__(self, base_x, tip_x, tip_y, fire_top, drift):
+        self.tip_y = tip_y
+        self.drift = drift
+        self.height = tip_y - fire_top + 1
+        self.left = tip_x - FIRE_W // 2
+
+        # 2 px wide stick from the bottom edge up to the tip; the top two
+        # rows are the brighter wrapped head
+        self.stick = []
+        for y in range(tip_y, 32):
+            t = (31 - y) / (31 - tip_y)
+            x = round(base_x + (tip_x - base_x) * t)
+            color = WRAP if y <= tip_y + 1 else WOOD
+            self.stick.append((x, y, color))
+            self.stick.append((x + 1, y, color))
+
+
+# drift picks the source cell below (x + drift), so extra +1 entries make the
+# flame lean left and extra -1 entries make it lean right - matching the tilt
+TORCHES = [
+    _Torch(24, 21, 25, 8, (-1, 0, 0, 1, 1)),    # left, leaning outwards
+    _Torch(31, 31, 23, 4, (-1, 0, 0, 0, 1)),    # center, upright and taller
+    _Torch(38, 41, 25, 8, (-1, -1, 0, 0, 1)),   # right, leaning outwards
+]
 
 
 class Fireplace(Submodule):
@@ -50,47 +71,50 @@ class Fireplace(Submodule):
 
     def __init__(self, add_loop, rmv_loop, add_event):
         super().__init__(add_loop, rmv_loop, add_event)
-
-        # a missing image fails initialisation, the scheduler then skips this module
-        image = Image.open(settings.IMAGES_PATH + 'fireplace.png')
-        if image.size != (64, 32):
-            image = image.resize((64, 32))
-        self.background = image.convert('RGB')
-
         add_loop(self.options['priority'], self.display_fireplace)
 
     @staticmethod
-    def step_fire(heat, ember_scale, extra_cooling):
-        # seed the bottom row (the embers) with flickering, center-weighted heat
-        for x in range(FIRE_WIDTH):
+    def step_fire(heat, drift, ember_scale, extra_cooling):
+        # seed the bottom row (the torch head) with flickering heat
+        height = len(heat)
+        for x in range(FIRE_W):
             seed_max = round(SEED_MAX[x] * ember_scale)
-            heat[FIRE_HEIGHT - 1][x] = random.randint(max(0, seed_max - 4), seed_max)
+            heat[height - 1][x] = random.randint(max(0, seed_max - 4), seed_max)
 
         # classic doom fire: heat rises, drifts sideways and cools down
-        for y in range(FIRE_HEIGHT - 1):
-            for x in range(FIRE_WIDTH):
-                src = min(FIRE_WIDTH - 1, max(0, x + random.choice(DRIFT)))
+        for y in range(height - 1):
+            for x in range(FIRE_W):
+                src = min(FIRE_W - 1, max(0, x + random.choice(drift)))
                 cooling = random.choice(DECAY) + EDGE_COOLING[x] + extra_cooling
                 heat[y][x] = min(MAX_HEAT, max(0, heat[y + 1][src] - cooling))
 
     def display_fireplace(self, matrix):
         swap = self.get_canvas(matrix)
         opts = self.options
-        heat = [[0] * FIRE_WIDTH for _ in range(FIRE_HEIGHT)]
+        heats = [[[0] * FIRE_W for _ in range(torch.height)] for torch in TORCHES]
 
         for _ in range(int(opts['duration'] * opts['fps'])):
             frame_start = time.perf_counter()
+            ember_scale = opts['embers'] / 100
             # flames maps to cooling: taller flames cool slower on the way up
-            Fireplace.step_fire(heat, opts['embers'] / 100, 3 - int(opts['flames']))
+            extra_cooling = 3 - int(opts['flames'])
 
-            swap.SetImage(self.background, 0, 0, unsafe=False)
+            swap.Clear()
+            for torch, heat in zip(TORCHES, heats):
+                Fireplace.step_fire(heat, torch.drift, ember_scale, extra_cooling)
 
-            for y, (x0, x1) in FIRE_ROWS.items():
-                row = heat[y - FIRE_TOP]
-                for x in range(x0, x1 + 1):
-                    color = PALETTE[row[x - FIRE_LEFT]]
-                    if color:
-                        swap.SetPixel(x, y, color[0], color[1], color[2])
+                for x, y, (r, g, b) in torch.stick:
+                    swap.SetPixel(x, y, r, g, b)
+
+                # the fire grid's bottom row overlaps the head, so the
+                # embers glow right on the wrap
+                top = torch.tip_y - torch.height + 1
+                for gy, row in enumerate(heat):
+                    for gx, value in enumerate(row):
+                        color = PALETTE[value]
+                        if color:
+                            swap.SetPixel(torch.left + gx, top + gy,
+                                          color[0], color[1], color[2])
 
             swap = self.swap_canvas(matrix, swap)
             time.sleep(max(0.0, 1 / opts['fps'] - (time.perf_counter() - frame_start)))
