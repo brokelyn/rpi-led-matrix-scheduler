@@ -3,6 +3,13 @@ import settings
 
 class Submodule:
 
+    # Web-editable settings: subclasses declare
+    #   OPTIONS = {'key': {'label': ..., 'default': ..., 'min': ..., 'max': ..., 'step': ...}}
+    # and read the current values from self.options['key']. The scheduler
+    # updates that dict in place when modules.conf changes, so values read
+    # inside a display loop apply live.
+    OPTIONS = {}
+
     # The matrix never frees canvases returned by CreateFrameCanvas() until the
     # matrix itself is destroyed, so all modules share one off-screen canvas
     # instead of creating a new one on every display call. Display functions
@@ -14,6 +21,10 @@ class Submodule:
         self.rmv_loop = rmv_loop
         self.add_event = add_event
         self.fnc_id = None
+        # the scheduler pre-sets self.options before __init__ runs; this
+        # fallback keeps modules working when constructed directly
+        if not hasattr(self, 'options'):
+            self.options = {key: meta['default'] for key, meta in self.OPTIONS.items()}
 
     def get_canvas(self, matrix):
         if Submodule._canvas is None:

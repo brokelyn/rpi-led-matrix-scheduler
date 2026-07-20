@@ -8,6 +8,11 @@ from PIL import Image
 
 class PiholeStats(Submodule):
 
+    OPTIONS = {
+        'priority': {'label': 'Priority', 'default': 4.5, 'min': 1.5, 'max': 10, 'step': 0.5},
+        'duration': {'label': 'Duration s', 'default': 8, 'min': 2, 'max': 60, 'step': 2},
+    }
+
     def __init__(self, add_loop, rmv_loop, add_event):
         super().__init__(add_loop, rmv_loop, add_event)
 
@@ -21,10 +26,10 @@ class PiholeStats(Submodule):
             print('Pi-Hole image not found')
             self.image = None
 
-        add_loop(4.5, self.display_stats)
+        add_loop(self.options['priority'], self.display_stats)
 
     def display_stats(self, matrix):
-        for i in range(4):
+        for i in range(max(1, int(self.options['duration'] / 2))):
             swap = self.get_canvas(matrix)
 
             graphics.DrawText(swap, self.font, 5, self.font.baseline - 2, graphics.Color(120, 120, 120), " Pi Hole")

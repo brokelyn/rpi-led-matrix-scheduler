@@ -125,3 +125,4 @@ dmypy.json
 # OS Stuff
 ._.DS_Store
 modules.conf
+modules_meta.json

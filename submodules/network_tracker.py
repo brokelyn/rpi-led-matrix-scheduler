@@ -7,9 +7,14 @@ import subprocess
 
 class NetworkTracker(Submodule):
 
+    OPTIONS = {
+        'priority':      {'label': 'Priority', 'default': 5, 'min': 1.5, 'max': 10, 'step': 0.5},
+        'scan_interval': {'label': 'Scan every s', 'default': 120, 'min': 30, 'max': 600, 'step': 30},
+    }
+
     def __init__(self, add_loop, rmv_loop, add_event):
         super().__init__(add_loop, rmv_loop, add_event)
-        add_loop(5, self.display_connected)
+        add_loop(self.options['priority'], self.display_connected)
 
         self.font1 = load_font("5x8.bdf")
         self.font2 = load_font("4x6.bdf")
@@ -80,7 +85,7 @@ class NetworkTracker(Submodule):
                     self.new_devices.put([key, average_devices[key]])
                     self.add_event(2, self.display_new)
 
-            time.sleep(120)
+            time.sleep(self.options['scan_interval'])
 
     def display_connected(self, matrix):
         swap = self.get_canvas(matrix)

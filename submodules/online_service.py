@@ -6,11 +6,15 @@ import ping3
 
 class OnlineService(Submodule):
 
+    OPTIONS = {
+        'priority': {'label': 'Priority', 'default': 8, 'min': 1.5, 'max': 10, 'step': 0.5},
+    }
+
     def __init__(self, add_loop, rmv_loop, add_event):
         super().__init__(add_loop, rmv_loop, add_event)
         self.fontBold = load_font("6x13B.bdf")
         self.font = load_font("5x8.bdf")
-        add_loop(8, self.display_ping_test)
+        add_loop(self.options['priority'], self.display_ping_test)
 
     @staticmethod
     def draw_cross(canvas, x, y):

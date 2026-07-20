@@ -40,6 +40,14 @@ for _x in range(FIRE_WIDTH):
 
 class Fireplace(Submodule):
 
+    OPTIONS = {
+        'priority': {'label': 'Priority', 'default': 4, 'min': 1.5, 'max': 10, 'step': 0.5},
+        'embers':   {'label': 'Ember heat %', 'default': 100, 'min': 50, 'max': 100, 'step': 5},
+        'flames':   {'label': 'Flame height', 'default': 3, 'min': 1, 'max': 4, 'step': 1},
+        'duration': {'label': 'Duration s', 'default': 17, 'min': 5, 'max': 120, 'step': 1},
+        'fps':      {'label': 'FPS', 'default': 15, 'min': 6, 'max': 30, 'step': 1},
+    }
+
     def __init__(self, add_loop, rmv_loop, add_event):
         super().__init__(add_loop, rmv_loop, add_event)
 
@@ -49,27 +57,31 @@ class Fireplace(Submodule):
             image = image.resize((64, 32))
         self.background = image.convert('RGB')
 
-        add_loop(4, self.display_fireplace)
+        add_loop(self.options['priority'], self.display_fireplace)
 
     @staticmethod
-    def step_fire(heat):
+    def step_fire(heat, ember_scale, extra_cooling):
         # seed the bottom row (the embers) with flickering, center-weighted heat
         for x in range(FIRE_WIDTH):
-            heat[FIRE_HEIGHT - 1][x] = random.randint(max(0, SEED_MAX[x] - 4), SEED_MAX[x])
+            seed_max = round(SEED_MAX[x] * ember_scale)
+            heat[FIRE_HEIGHT - 1][x] = random.randint(max(0, seed_max - 4), seed_max)
 
         # classic doom fire: heat rises, drifts sideways and cools down
         for y in range(FIRE_HEIGHT - 1):
             for x in range(FIRE_WIDTH):
                 src = min(FIRE_WIDTH - 1, max(0, x + random.choice(DRIFT)))
-                cooling = random.choice(DECAY) + EDGE_COOLING[x]
-                heat[y][x] = max(0, heat[y + 1][src] - cooling)
+                cooling = random.choice(DECAY) + EDGE_COOLING[x] + extra_cooling
+                heat[y][x] = min(MAX_HEAT, max(0, heat[y + 1][src] - cooling))
 
     def display_fireplace(self, matrix):
-        swap = matrix.CreateFrameCanvas()
+        swap = self.get_canvas(matrix)
+        opts = self.options
         heat = [[0] * FIRE_WIDTH for _ in range(FIRE_HEIGHT)]
 
-        for _ in range(260):  # ~17 seconds, the fire "catches" from the embers
-            Fireplace.step_fire(heat)
+        for _ in range(int(opts['duration'] * opts['fps'])):
+            frame_start = time.perf_counter()
+            # flames maps to cooling: taller flames cool slower on the way up
+            Fireplace.step_fire(heat, opts['embers'] / 100, 3 - int(opts['flames']))
 
             swap.SetImage(self.background, 0, 0, unsafe=False)
 
@@ -80,5 +92,5 @@ class Fireplace(Submodule):
                     if color:
                         swap.SetPixel(x, y, color[0], color[1], color[2])
 
-            swap = matrix.SwapOnVSync(swap)
-            time.sleep(0.065)
+            swap = self.swap_canvas(matrix, swap)
+            time.sleep(max(0.0, 1 / opts['fps'] - (time.perf_counter() - frame_start)))

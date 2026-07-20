@@ -8,8 +8,10 @@ FONT_PATH = str(_BASE_PATH / 'fonts') + os.sep
 IMAGES_PATH = str(_BASE_PATH / 'images') + os.sep
 
 # modules.conf lives next to the code; the scheduler keeps it complete
-# and the web interface edits it
+# and the web interface edits it. modules_meta.json carries the option
+# specs (ranges, labels) from the scheduler to the web interface.
 MODULES_CONF = str(_BASE_PATH / 'modules.conf')
+MODULES_META = str(_BASE_PATH / 'modules_meta.json')
 WEB_UI_PORT = int(os.environ.get('LEDSTATION_WEB_PORT', '8080'))
 
 # Runtime Vars

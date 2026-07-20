@@ -129,6 +129,25 @@ runtime stop being scheduled. The web server only ever reads and writes `modules
 it never talks to the display process, and it is plain unauthenticated HTTP - meant for a
 trusted home network only.
 
+### Module settings
+
+Modules can declare web-editable settings by adding an `OPTIONS` dict to their class:
+
+```python
+class Boids(Submodule):
+    OPTIONS = {
+        'priority': {'label': 'Priority', 'default': 4.5, 'min': 1.5, 'max': 10, 'step': 0.5},
+        'count':    {'label': 'Boids',    'default': 25,  'min': 5,   'max': 60, 'step': 1},
+    }
+```
+
+and reading the current values from `self.options['count']`. Each declared option shows up
+as a slider in an expandable card on the website and as a `[ModuleName]` section in
+`modules.conf`. The scheduler updates the values in place, so options read inside a display
+loop (like the boids simulation parameters) apply live while the animation is running -
+only the `priority` option and values read once at startup follow the usual ~30 s rhythm.
+Out-of-range values are clamped, unknown keys are dropped on the next rewrite.
+
 ### Autostart
 
 The easiest way is to use `cron`. Just add `@reboot sudo -E python3 <path_to_scheduler.py>` as cronjob.

@@ -1,5 +1,6 @@
 from init import init_leds
 import itertools
+import json
 import logging
 import os
 import subprocess
@@ -42,16 +43,21 @@ class Scheduler:
         self.loops = []
         self.events = []
 
-        self.instances = {}   # module name -> instance (once created)
-        self.loop_regs = {}   # module name -> {loop id: (priority, fnc)}
+        self.instances = {}       # module name -> instance (once created)
+        self.loop_regs = {}       # module name -> {loop id: (priority, fnc)}
         self.enabled = set()
         self.services = []
 
         self.module_classes = self.discover_submodules()
-        conf = module_config.ensure(settings.MODULES_CONF, self.module_classes)
-        self._chown_conf_to_sudo_user()
+        self.option_specs = {name: getattr(cls, 'OPTIONS', {})
+                             for name, cls in self.module_classes.items()}
+
+        enabled_conf, self.module_options = module_config.ensure(
+            settings.MODULES_CONF, self.option_specs)
+        self.write_meta()
+        self._chown_to_sudo_user(settings.MODULES_CONF, settings.MODULES_META)
         self._conf_mtime = self._conf_stat()
-        self.apply_config(conf)
+        self.apply_config(enabled_conf)
 
         settings.LOADED_MODULES = len(self.instances)
         log.info("Done loading modules! %d of %d modules are enabled.",
@@ -145,7 +151,12 @@ class Scheduler:
             return lambda priority, display_fnc: fnc(priority, display_fnc, name)
 
         try:
-            instance = cls(tagged(self.add_loop), self.rmv_loop, tagged(self.add_event))
+            # options are handed over before __init__ runs (the module reads
+            # e.g. its loop priority from them) and shared by reference, so
+            # later config changes reach the instance without any plumbing
+            instance = cls.__new__(cls)
+            instance.options = self.module_options.setdefault(name, {})
+            instance.__init__(tagged(self.add_loop), self.rmv_loop, tagged(self.add_event))
         except Exception:
             log.exception("Failed to initialise module %s - skipping it", name)
             with self._lock:
@@ -177,23 +188,57 @@ class Scheduler:
             return
         self._conf_mtime = mtime
         try:
-            conf = module_config.read(settings.MODULES_CONF)
+            enabled_conf, options_conf = module_config.read(settings.MODULES_CONF)
         except Exception:
             log.exception("Ignoring invalid modules.conf")
             return
         log.info("modules.conf changed - applying")
-        self.apply_config(conf)
+        self.apply_options(options_conf)
+        self.apply_config(enabled_conf)
 
-    def _chown_conf_to_sudo_user(self):
+    def apply_options(self, options_conf):
+        for name, spec in self.option_specs.items():
+            if not spec:
+                continue
+            merged = module_config.merge_options(spec, options_conf.get(name, {}))
+            current = self.module_options.setdefault(name, merged)
+            if current is merged or merged == current:
+                continue
+            old_priority = current.get('priority')
+            # in place, so instances holding this dict see the new values
+            current.update(merged)
+            if 'priority' in current and current['priority'] != old_priority:
+                self._reprioritize(name, current['priority'])
+
+    def _reprioritize(self, name, priority):
+        with self._lock:
+            for obj in self.loops:
+                if obj.module == name:
+                    obj.base_prio = priority
+                    obj.curr_prio = priority
+            regs = self.loop_regs.get(name, {})
+            for id, (_, fnc) in list(regs.items()):
+                regs[id] = (priority, fnc)
+
+    def write_meta(self):
+        meta = {name: spec for name, spec in self.option_specs.items() if spec}
+        try:
+            with open(settings.MODULES_META, 'w') as f:
+                json.dump(meta, f, indent=2)
+        except OSError:
+            log.exception("Could not write %s", settings.MODULES_META)
+
+    def _chown_to_sudo_user(self, *paths):
         # the scheduler usually runs as root (gpio) but the web interface
-        # runs as the sudo user; hand the file over so it stays editable
+        # runs as the sudo user; hand the files over so they stay editable
         if hasattr(os, 'geteuid') and os.geteuid() == 0 and os.environ.get('SUDO_UID'):
             uid = int(os.environ['SUDO_UID'])
             gid = int(os.environ.get('SUDO_GID', uid))
-            try:
-                os.chown(settings.MODULES_CONF, uid, gid)
-            except OSError:
-                log.exception("Could not chown modules.conf")
+            for path in paths:
+                try:
+                    os.chown(path, uid, gid)
+                except OSError:
+                    log.exception("Could not chown %s", path)
 
     # ------------------------------------------------------------ queues
 

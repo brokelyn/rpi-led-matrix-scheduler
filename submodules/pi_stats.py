@@ -8,6 +8,11 @@ import psutil
 
 class PiStats(Submodule):
 
+    OPTIONS = {
+        'priority': {'label': 'Priority', 'default': 5, 'min': 1.5, 'max': 10, 'step': 0.5},
+        'duration': {'label': 'Duration s', 'default': 7, 'min': 3, 'max': 60, 'step': 1},
+    }
+
     def __init__(self, add_loop, rmv_loop, add_event):
         super().__init__(add_loop, rmv_loop, add_event)
 
@@ -21,10 +26,10 @@ class PiStats(Submodule):
             print('Raspberry Pi image not found')
             self.rgb_image = None
 
-        add_loop(5.0, self.display_stats)
+        add_loop(self.options['priority'], self.display_stats)
 
     def display_stats(self, matrix):
-        for i in range(10):
+        for i in range(max(1, int(self.options['duration'] / 0.7))):
             cpu_perc = int(psutil.cpu_percent())
             cpu_temp = int(psutil.sensors_temperatures()['cpu_thermal'][0].current)
             mem_perc = int(psutil.virtual_memory().percent)

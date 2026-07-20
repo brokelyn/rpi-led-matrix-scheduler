@@ -11,6 +11,10 @@ lock = threading.Lock()
 
 class StatsSyncthing(Submodule):
 
+    OPTIONS = {
+        'priority': {'label': 'Priority', 'default': 5, 'min': 1.5, 'max': 10, 'step': 0.5},
+    }
+
     def __init__(self, add_loop, rmv_loop, add_event):
         super().__init__(add_loop, rmv_loop, add_event)
 
@@ -25,7 +29,7 @@ class StatsSyncthing(Submodule):
 
         self.is_init_done = False
 
-        add_loop(5, self.sync_status)
+        add_loop(self.options['priority'], self.sync_status)
 
         self.font = load_font("6x13B.bdf")
         self.font_small = load_font("4x6.bdf")

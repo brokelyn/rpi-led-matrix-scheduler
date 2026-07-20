@@ -101,19 +101,24 @@
   .list-head .count { color: var(--amber); }
 
   .module {
-    display: flex;
-    align-items: center;
-    gap: 14px;
     background: linear-gradient(180deg, #161209, var(--row));
     border: 1px solid var(--row-edge);
     border-radius: 8px;
-    padding: 13px 15px;
     margin-bottom: 8px;
     opacity: 0;
     transform: translateY(8px);
     animation: rise .4s ease forwards;
   }
   @keyframes rise { to { opacity: 1; transform: none; } }
+
+  .head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 13px 15px;
+    cursor: default;
+  }
+  .module.has-opts .head { cursor: pointer; }
 
   .led {
     flex: none;
@@ -129,8 +134,8 @@
                 inset 0 0 2px rgba(255, 255, 255, .6);
   }
 
-  .module .info { flex: 1; min-width: 0; }
-  .module .name {
+  .head .info { flex: 1; min-width: 0; }
+  .head .name {
     font-size: 15px;
     letter-spacing: .02em;
     white-space: nowrap;
@@ -139,13 +144,28 @@
     transition: color .25s;
   }
   .module:not(.on) .name { color: var(--text-dim); }
-  .module .tag {
+  .head .tag {
     font-size: 10px;
     letter-spacing: .22em;
     color: var(--text-faint);
     margin-top: 3px;
     text-transform: uppercase;
   }
+
+  .chev {
+    flex: none;
+    width: 22px; height: 22px;
+    border: 0;
+    background: none;
+    color: var(--text-faint);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    transition: transform .25s, color .25s;
+    transform: rotate(-90deg);
+  }
+  .module.open .chev { transform: rotate(0deg); color: var(--amber); }
+  .module:not(.has-opts) .chev { visibility: hidden; }
 
   /* industrial slide toggle */
   .toggle {
@@ -188,6 +208,113 @@
     25% { transform: translateX(-3px); }
     75% { transform: translateX(3px); }
   }
+
+  /* --------------------------------------------------- settings drawer */
+
+  .drawer {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows .3s ease;
+  }
+  .module.open .drawer { grid-template-rows: 1fr; }
+  .drawer > div { min-height: 0; overflow: hidden; }
+
+  .drawer-inner {
+    border-top: 1px solid var(--row-edge);
+    background: rgba(0, 0, 0, .25);
+    padding: 12px 15px 13px;
+  }
+
+  .opt {
+    display: grid;
+    grid-template-columns: minmax(84px, 110px) 1fr 52px;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 0;
+  }
+  .opt label {
+    font-size: 10px;
+    letter-spacing: .16em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .opt output {
+    font-size: 12px;
+    color: var(--amber);
+    text-align: right;
+  }
+
+  .opt input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 22px;
+    background: none;
+    cursor: pointer;
+  }
+  .opt input[type=range]::-webkit-slider-runnable-track {
+    height: 5px;
+    border-radius: 3px;
+    background: var(--track, #241d12);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, .8);
+  }
+  .opt input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 18px;
+    margin-top: -6.5px;
+    border-radius: 3px;
+    border: 1px solid #0a0805;
+    background:
+      repeating-linear-gradient(90deg,
+        rgba(0, 0, 0, .25) 0 2px, transparent 2px 4px),
+      linear-gradient(180deg, #ffc63d, #b57400);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, .7);
+  }
+  .opt input[type=range]::-moz-range-track {
+    height: 5px;
+    border-radius: 3px;
+    background: #241d12;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, .8);
+  }
+  .opt input[type=range]::-moz-range-progress {
+    height: 5px;
+    border-radius: 3px;
+    background: var(--amber-dim);
+  }
+  .opt input[type=range]::-moz-range-thumb {
+    width: 16px; height: 18px;
+    border-radius: 3px;
+    border: 1px solid #0a0805;
+    background: linear-gradient(180deg, #ffc63d, #b57400);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, .7);
+  }
+  .opt input[type=range]:focus-visible {
+    outline: 1px solid var(--amber);
+    outline-offset: 2px;
+  }
+
+  .drawer-foot {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 8px;
+  }
+  .reset {
+    border: 1px solid var(--row-edge);
+    background: none;
+    color: var(--text-dim);
+    font: inherit;
+    font-size: 9px;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: color .2s, border-color .2s;
+  }
+  .reset:hover { color: var(--amber); border-color: var(--amber-dim); }
 
   .empty {
     text-align: center;
@@ -232,7 +359,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .module { animation: none; opacity: 1; transform: none; }
-    .toggle::before { transition: none; }
+    .toggle::before, .drawer, .chev { transition: none; }
   }
 </style>
 </head>
@@ -262,14 +389,23 @@
 
 /* ------------------------------------------------------------------ state */
 
-let modules = [];        // [{name, enabled}]
-let inflight = false;    // a toggle POST is running; pause polling
+let modules = [];          // [{name, enabled, options: [{key,label,min,max,step,default,value}]}]
+let inflight = false;      // a POST is running; pause polling
+let lastDrag = 0;          // last slider interaction, pauses polling briefly
+const openSet = new Set(); // module names with an open drawer
 
 const listEl  = document.getElementById("modules");
 const countEl = document.getElementById("count");
 const statusEl = document.getElementById("status");
 
 const pretty = name => name.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
+const fmt = (value, step) => step < 1 ? Number(value).toFixed(1) : String(Math.round(value));
+
+function paintTrack(slider) {
+  const pct = 100 * (slider.value - slider.min) / (slider.max - slider.min);
+  slider.style.setProperty("--track",
+    "linear-gradient(90deg, var(--amber-dim) " + pct + "%, #241d12 " + pct + "%)");
+}
 
 function render() {
   countEl.textContent =
@@ -283,20 +419,81 @@ function render() {
 
   listEl.innerHTML = "";
   modules.forEach((m, i) => {
-    const row = document.createElement("div");
-    row.className = "module" + (m.enabled ? " on" : "");
-    row.style.animationDelay = (i * 55) + "ms";
-    row.innerHTML =
-      '<span class="led"></span>' +
-      '<span class="info"><div class="name"></div>' +
-      '<div class="tag">module ' + String(i + 1).padStart(2, "0") + "</div></span>" +
-      '<button class="toggle" role="switch" aria-checked="' + m.enabled + '"' +
-      ' aria-label="toggle module"></button>';
-    row.querySelector(".name").textContent = pretty(m.name);
-    row.querySelector(".toggle").addEventListener("click", () => toggle(m, row));
-    listEl.appendChild(row);
+    const hasOpts = m.options.length > 0;
+    const card = document.createElement("div");
+    card.className = "module" + (m.enabled ? " on" : "") +
+      (hasOpts ? " has-opts" : "") + (openSet.has(m.name) ? " open" : "");
+    card.style.animationDelay = (i * 55) + "ms";
+
+    card.innerHTML =
+      '<div class="head">' +
+        '<span class="led"></span>' +
+        '<span class="info"><div class="name"></div>' +
+        '<div class="tag">module ' + String(i + 1).padStart(2, "0") + "</div></span>" +
+        '<button class="chev" aria-label="settings" aria-expanded="' + openSet.has(m.name) + '">&#9662;</button>' +
+        '<button class="toggle" role="switch" aria-checked="' + m.enabled + '"' +
+        ' aria-label="toggle module"></button>' +
+      "</div>" +
+      '<div class="drawer"><div><div class="drawer-inner"></div></div></div>';
+
+    card.querySelector(".name").textContent = pretty(m.name);
+    card.querySelector(".toggle").addEventListener("click", ev => {
+      ev.stopPropagation();
+      toggle(m, card);
+    });
+
+    if (hasOpts) {
+      card.querySelector(".head").addEventListener("click", ev => {
+        if (ev.target.closest(".toggle")) return;
+        const open = card.classList.toggle("open");
+        card.querySelector(".chev").setAttribute("aria-expanded", open);
+        open ? openSet.add(m.name) : openSet.delete(m.name);
+      });
+      buildDrawer(m, card.querySelector(".drawer-inner"));
+    }
+
+    listEl.appendChild(card);
   });
   buildMarqueeText();
+}
+
+function buildDrawer(m, inner) {
+  m.options.forEach(o => {
+    const row = document.createElement("div");
+    row.className = "opt";
+    const sid = "opt-" + m.name + "-" + o.key;
+    row.innerHTML =
+      '<label for="' + sid + '"></label>' +
+      '<input type="range" id="' + sid + '" min="' + o.min + '" max="' + o.max +
+      '" step="' + o.step + '" value="' + o.value + '">' +
+      "<output></output>";
+    row.querySelector("label").textContent = o.label;
+    const slider = row.querySelector("input");
+    const out = row.querySelector("output");
+    out.textContent = fmt(o.value, o.step);
+    paintTrack(slider);
+
+    slider.addEventListener("input", () => {
+      lastDrag = Date.now();
+      out.textContent = fmt(slider.value, o.step);
+      paintTrack(slider);
+    });
+    slider.addEventListener("change", () => setOption(m.name, o.key, slider.value));
+    inner.appendChild(row);
+  });
+
+  const foot = document.createElement("div");
+  foot.className = "drawer-foot";
+  const reset = document.createElement("button");
+  reset.className = "reset";
+  reset.textContent = "reset defaults";
+  reset.addEventListener("click", async () => {
+    for (const o of m.options) {
+      if (o.value !== o.default) await setOption(m.name, o.key, o.default);
+    }
+  });
+  foot.appendChild(reset);
+  inner.appendChild(foot);
 }
 
 function applyState(list) {
@@ -306,7 +503,7 @@ function applyState(list) {
 }
 
 async function refresh() {
-  if (inflight) return;
+  if (inflight || Date.now() - lastDrag < 1500) return;
   try {
     const res = await fetch("/api/modules");
     applyState((await res.json()).modules);
@@ -318,13 +515,13 @@ async function refresh() {
   }
 }
 
-async function toggle(m, row) {
+async function toggle(m, card) {
   if (inflight) return;
   inflight = true;
   const wanted = !m.enabled;
   // optimistic flip
-  row.classList.toggle("on", wanted);
-  row.querySelector(".toggle").setAttribute("aria-checked", wanted);
+  card.classList.toggle("on", wanted);
+  card.querySelector(".toggle").setAttribute("aria-checked", wanted);
   try {
     const res = await fetch("/api/toggle", {
       method: "POST",
@@ -334,10 +531,28 @@ async function toggle(m, row) {
     if (!res.ok) throw new Error(res.status);
     applyState((await res.json()).modules);
   } catch (e) {
-    row.classList.toggle("on", m.enabled);   // revert
-    row.querySelector(".toggle").setAttribute("aria-checked", m.enabled);
-    row.classList.add("err");
-    setTimeout(() => row.classList.remove("err"), 400);
+    card.classList.toggle("on", m.enabled);   // revert
+    card.querySelector(".toggle").setAttribute("aria-checked", m.enabled);
+    card.classList.add("err");
+    setTimeout(() => card.classList.remove("err"), 400);
+  } finally {
+    inflight = false;
+  }
+}
+
+async function setOption(module, key, value) {
+  if (inflight) return;
+  inflight = true;
+  try {
+    const res = await fetch("/api/option", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ module: module, key: key, value: Number(value) })
+    });
+    if (!res.ok) throw new Error(res.status);
+    applyState((await res.json()).modules);
+  } catch (e) {
+    statusEl.classList.add("lost");
   } finally {
     inflight = false;
   }

@@ -5,16 +5,13 @@ from submodule import Submodule
 from rgbmatrix import graphics
 
 
-visual_range = 3
 centering_factor = 0.008
 avoid_factor = 0.08
 matching_factor = 0.25
-speed_limit = 1.1
 
 height = 32
 width = 64
 
-visual_range_sq = visual_range ** 2
 avoid_range_sq = 2 ** 2
 
 
@@ -31,7 +28,7 @@ class body:
         self.color = color
 
 
-def apply_flocking(bodies):
+def apply_flocking(bodies, visual_range_sq):
     # one pass over all pairs replaces the former flyTowardsCenter,
     # avoidOthers and matchVelocity loops: one squared-distance check
     # per pair instead of three sqrt calls
@@ -76,7 +73,7 @@ def apply_flocking(bodies):
             body.velocity.y += (match_y / match_n - body.velocity.y) * matching_factor
 
 
-def limitSpeed(bodies):
+def limitSpeed(bodies, speed_limit):
     for body in bodies:
         body.velocity.x = body.velocity.x * 1.025
         body.velocity.y = body.velocity.y * 1.025
@@ -102,7 +99,7 @@ def keepWithinBounds(bodies):
             body.velocity.y -= turnFactor
 
 
-def colorBySpeed(bodies):
+def colorBySpeed(bodies, speed_limit):
     color_step_size = 255 / speed_limit
 
     for body in bodies:
@@ -119,12 +116,12 @@ def update_location(bodies):
         target_body.location.y += target_body.velocity.y
 
 
-def compute_step(bodies):
-    apply_flocking(bodies)
-    limitSpeed(bodies)
+def compute_step(bodies, visual_range, speed_limit):
+    apply_flocking(bodies, visual_range ** 2)
+    limitSpeed(bodies, speed_limit)
     keepWithinBounds(bodies)
 
-    colorBySpeed(bodies)
+    colorBySpeed(bodies, speed_limit)
 
     update_location(bodies)
 
@@ -135,19 +132,30 @@ def rnd_point(minx, maxx, miny, maxy):
 
 class Boids(Submodule):
 
+    OPTIONS = {
+        'priority': {'label': 'Priority', 'default': 4.5, 'min': 1.5, 'max': 10, 'step': 0.5},
+        'count':    {'label': 'Boids', 'default': 25, 'min': 5, 'max': 60, 'step': 1},
+        'speed':    {'label': 'Max speed', 'default': 1.1, 'min': 0.3, 'max': 3, 'step': 0.1},
+        'vision':   {'label': 'Vision range', 'default': 3, 'min': 1, 'max': 10, 'step': 1},
+        'duration': {'label': 'Duration s', 'default': 10, 'min': 5, 'max': 60, 'step': 1},
+        'fps':      {'label': 'FPS', 'default': 65, 'min': 20, 'max': 80, 'step': 5},
+    }
+
     def __init__(self, add_loop, rmv_loop, add_event):
         super().__init__(add_loop, rmv_loop, add_event)
-        add_loop(4.5, self.display_swarm)
+        add_loop(self.options['priority'], self.display_swarm)
 
     def display_swarm(self, matrix):
         swap = self.get_canvas(matrix)
+        opts = self.options
 
-        bodies = [body(rnd_point(1, 63, 1, 31), rnd_point(-1, 0, -1, 0)) for _ in range(25)]
+        bodies = [body(rnd_point(1, 63, 1, 31), rnd_point(-1, 0, -1, 0))
+                  for _ in range(int(opts['count']))]
 
-        frame_time = 0.015
-        for _ in range(650):
+        for _ in range(int(opts['duration'] * opts['fps'])):
             frame_start = time.perf_counter()
-            compute_step(bodies)
+            # options are read every frame, so slider changes apply live
+            compute_step(bodies, opts['vision'], opts['speed'])
 
             swap.Clear()
             for obj in bodies:
@@ -156,4 +164,4 @@ class Boids(Submodule):
             swap = self.swap_canvas(matrix, swap)
             # sleep only the remainder of the frame budget so system load
             # doesn't slow the animation down
-            time.sleep(max(0.0, frame_time - (time.perf_counter() - frame_start)))
+            time.sleep(max(0.0, 1 / opts['fps'] - (time.perf_counter() - frame_start)))
