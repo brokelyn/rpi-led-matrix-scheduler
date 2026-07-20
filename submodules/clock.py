@@ -1,32 +1,30 @@
 import time
 from rgbmatrix import graphics
-from submodule import Submodule
+from submodule import Submodule, load_font
 from datetime import datetime
-import settings
 
 
 class Clock(Submodule):
 
     def __init__(self, add_loop, rmv_loop, add_event):
         super().__init__(add_loop, rmv_loop, add_event)
+        self.font = load_font("6x13B.bdf")
         add_loop(2, self.display_clock)
 
     def display_clock(self, matrix):
-        swap = matrix.CreateFrameCanvas()
+        swap = self.get_canvas(matrix)
 
-        font = graphics.Font()
-        font.LoadFont(settings.FONT_PATH + "6x13B.bdf")
+        date_color = graphics.Color(120, 0, 190)
+        day_color = graphics.Color(100, 130, 130)
 
         for i in range(8):
-            time_text1 = datetime.now().strftime("%a %d %b")
-            time_text2 = datetime.now().strftime(" Day %j")
-            time_text3 = datetime.now().strftime(" %H %M %S")
+            now = datetime.now()
 
             swap.Clear()
 
-            graphics.DrawText(swap, font, 2,  font.baseline - 2, graphics.Color(120, 0, 190), time_text1)
-            graphics.DrawText(swap, font, 4, font.baseline + 9, graphics.Color(100, 130, 130), time_text2)
-            graphics.DrawText(swap, font, 2, font.baseline + 21, graphics.Color(120, 0, 190), time_text3)
+            graphics.DrawText(swap, self.font, 2, self.font.baseline - 2, date_color, now.strftime("%a %d %b"))
+            graphics.DrawText(swap, self.font, 4, self.font.baseline + 9, day_color, now.strftime(" Day %j"))
+            graphics.DrawText(swap, self.font, 2, self.font.baseline + 21, date_color, now.strftime(" %H %M %S"))
 
-            swap = matrix.SwapOnVSync(swap)
+            swap = self.swap_canvas(matrix, swap)
             time.sleep(1)

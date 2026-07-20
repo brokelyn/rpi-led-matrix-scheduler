@@ -1,5 +1,5 @@
 import time
-from submodule import Submodule
+from submodule import Submodule, load_font
 from rgbmatrix import graphics
 from PIL import Image
 import settings
@@ -27,12 +27,17 @@ class StatsSyncthing(Submodule):
 
         add_loop(5, self.sync_status)
 
+        self.font = load_font("6x13B.bdf")
+        self.font_small = load_font("4x6.bdf")
+        self.font_regular = load_font("6x13.bdf")
+
         try:
             self.image = Image.open(settings.IMAGES_PATH + 'syncthing.jpg')
             self.image = self.image.resize((8, 9))
             self.image = self.image.convert('RGB')
         except FileNotFoundError:
-            print('Pi-Hole image not found')
+            print('Syncthing image not found')
+            self.image = None
 
         requests.packages.urllib3.disable_warnings()
 
@@ -173,23 +178,20 @@ class StatsSyncthing(Submodule):
             time.sleep(7)
 
     def display_offline(self, matrix):
-        swap = matrix.CreateFrameCanvas()
-
-        font = graphics.Font()
-        font.LoadFont(settings.FONT_PATH + "6x13B.bdf")
-
-        font2 = graphics.Font()
-        font2.LoadFont(settings.FONT_PATH + "4x6.bdf")
+        swap = self.get_canvas(matrix)
+        font = self.font
 
         graphics.DrawText(swap, font, 3, font.baseline - 2,
                           graphics.Color(50, 50, 180), " Syncthing")
-        graphics.DrawText(swap, font2, 0, font.baseline * 2,
+        graphics.DrawText(swap, self.font_small, 0, font.baseline * 2,
                           graphics.Color(120, 120, 120), settings.SYNCTHING_IP)
         graphics.DrawText(swap, font, 11, font.baseline * 3 - 1,
                           graphics.Color(200, 25, 25), "Offline")
 
-        matrix.SwapOnVSync(swap)
-        matrix.SetImage(self.image, unsafe=False)
+        if self.image is not None:
+            swap.SetImage(self.image, unsafe=False)
+
+        self.swap_canvas(matrix, swap)
 
     def display_status(self, matrix, device_id):
         try:
@@ -201,12 +203,9 @@ class StatsSyncthing(Submodule):
             need_items = 'Err'
             need_delete = 'Err'
 
-        swap = matrix.CreateFrameCanvas()
-
-        font = graphics.Font()
-        font.LoadFont(settings.FONT_PATH + "6x13B.bdf")
-        font2 = graphics.Font()
-        font2.LoadFont(settings.FONT_PATH + "6x13.bdf")
+        swap = self.get_canvas(matrix)
+        font = self.font
+        font2 = self.font_regular
 
         device_name = self.devices[device_id]['name'][:6]
 
@@ -236,5 +235,7 @@ class StatsSyncthing(Submodule):
             graphics.DrawText(swap, font, 0, font.baseline *
                               3 - 1, graphics.Color(10, 120, 10), "Up to Date")
 
-        matrix.SwapOnVSync(swap)
-        matrix.SetImage(self.image, unsafe=False)
+        if self.image is not None:
+            swap.SetImage(self.image, unsafe=False)
+
+        self.swap_canvas(matrix, swap)

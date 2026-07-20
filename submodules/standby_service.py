@@ -1,6 +1,6 @@
 import time
 from rgbmatrix import graphics
-from submodule import Submodule
+from submodule import Submodule, load_font
 import ping3
 import settings
 
@@ -9,6 +9,7 @@ class StandbyService(Submodule):
 
     def __init__(self, add_loop, rmv_loop, add_event):
         super().__init__(add_loop, rmv_loop, add_event)
+        self.font = load_font("6x13B.bdf")
         self.online = True
 
     def ping(self, ip, n):
@@ -46,39 +47,28 @@ class StandbyService(Submodule):
                     time.sleep(25)
 
     def standby(self, matrix):
-        swap = matrix.CreateFrameCanvas()
-        swap.Clear()
-        matrix.SwapOnVSync(swap)
+        swap = self.get_canvas(matrix)
+        self.swap_canvas(matrix, swap)
         time.sleep(15)
 
     def welcome(self, matrix):
-        swap = matrix.CreateFrameCanvas()
-
-        font = graphics.Font()
-        font.LoadFont(settings.FONT_PATH + "6x13B.bdf")
+        swap = self.get_canvas(matrix)
         text_color = graphics.Color(170, 0, 170)
 
-        swap.Clear()
+        graphics.DrawText(swap, self.font, 10, self.font.baseline - 2, text_color, "Welcome")
+        graphics.DrawText(swap, self.font, 20, self.font.baseline + 8, text_color, "back")
+        graphics.DrawText(swap, self.font, 2, self.font.baseline + 19, text_color, "Was sgdn?")
 
-        graphics.DrawText(swap, font, 10, font.baseline - 2, text_color, "Welcome")
-        graphics.DrawText(swap, font, 20, font.baseline + 8, text_color, "back")
-        graphics.DrawText(swap, font, 2, font.baseline + 19, text_color, "Was sgdn?")
-
-        matrix.SwapOnVSync(swap)
+        self.swap_canvas(matrix, swap)
         time.sleep(5.5)
 
     def goodbye(self, matrix):
-        swap = matrix.CreateFrameCanvas()
-
-        font = graphics.Font()
-        font.LoadFont(settings.FONT_PATH + "6x13B.bdf")
+        swap = self.get_canvas(matrix)
         text_color = graphics.Color(150, 80, 0)
 
-        swap.Clear()
+        graphics.DrawText(swap, self.font, 10, self.font.baseline - 2, text_color, "Goodbye")
+        graphics.DrawText(swap, self.font, 18, self.font.baseline + 10, text_color, "See U")
+        graphics.DrawText(swap, self.font, 15, self.font.baseline + 21, text_color, "Later!")
 
-        graphics.DrawText(swap, font, 10, font.baseline - 2, text_color, "Goodbye")
-        graphics.DrawText(swap, font, 18, font.baseline + 10, text_color, "See U")
-        graphics.DrawText(swap, font, 15, font.baseline + 21, text_color, "Later!")
-
-        matrix.SwapOnVSync(swap)
+        self.swap_canvas(matrix, swap)
         time.sleep(5)
