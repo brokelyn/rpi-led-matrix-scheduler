@@ -1,117 +1,138 @@
 from init import init_leds
-import queue
+import itertools
+import logging
 import threading
+import time
 
 import inspect
 import types
-import random
 import settings
+from submodule import Submodule
 from submodules import *
+
+log = logging.getLogger(__name__)
+
+
+class QObject:
+
+    def __init__(self, priority, id, fnc):
+        self.base_prio = priority
+        self.curr_prio = priority
+        self.call_fnc = fnc
+
+        self.id = id
+
+    def adjust_prio(self):
+        self.curr_prio = max(1.1, self.curr_prio - 0.2)
 
 
 class Scheduler:
-    class QObject:
-
-        def __init__(self, priority, id, fnc):
-            self.base_prio = priority
-            self.curr_prio = priority
-            self.call_fnc = fnc
-
-            self.id = id
-
-        def get_fnc(self):
-            self.curr_prio = self.base_prio
-            return self.call_fnc
-
-        def __lt__(self, other):
-            if self.curr_prio < other.curr_prio:
-                return True
-            else:
-                return False
-
-        def adjust_prio(self):
-            self.curr_prio = max(1.1, self.curr_prio - 0.2)
 
     def __init__(self):
-        self.loop_q = queue.PriorityQueue()
-        self.event_q = queue.PriorityQueue()
+        # one lock guards both lists; add_event/add_loop/rmv_loop are called
+        # from service threads while the scheduler thread picks the next item
+        self._lock = threading.Lock()
+        self._id_counter = itertools.count(1)
+        self.loops = []
+        self.events = []
 
         self.submodules = self.load_submodules()
         settings.LOADED_MODULES = len(self.submodules)
-        print("Done loading Modules! " + str(len(self.submodules)) + " modules were loaded.\n")
+        log.info("Done loading modules! %d modules were loaded.", len(self.submodules))
+
         self.services = self.init_submodule_services()
         settings.RUNNING_SERVICES = len(self.services)
-        print("Done loading Services! " + str(len(self.services)) + " services are runnning.\n")
+        log.info("Done loading services! %d services are running.", len(self.services))
 
         self.matrix = init_leds()
-
-        self.schedule()
 
     def schedule(self):
         while True:
             self.next()
 
     def next(self):
-        if not self.event_q.empty():
-            event = self.event_q.get()
-            print("Event Next: " + str(event.call_fnc))
-            self.run_module(event.get_fnc())
-        else:
-            for obj in self.loop_q.queue:
-                obj.adjust_prio()
-            loop = self.loop_q.get()
-            fnc = loop.get_fnc()
-            self.loop_q.put(loop)
+        with self._lock:
+            if self.events:
+                item = min(self.events, key=lambda obj: obj.curr_prio)
+                self.events.remove(item)
+                kind = "Event"
+            elif self.loops:
+                for obj in self.loops:
+                    obj.adjust_prio()
+                item = min(self.loops, key=lambda obj: obj.curr_prio)
+                item.curr_prio = item.base_prio
+                kind = "Loop"
+            else:
+                item = None
 
-            print("Loop Next: " + str(loop.call_fnc))
-            self.run_module(fnc)
+        if item is None:
+            time.sleep(0.1)
+            return
+
+        log.info("%s next: %s", kind, item.call_fnc)
+        self.run_module(item.call_fnc)
 
     def run_module(self, fnc):
-        thread = threading.Thread(target=fnc, args=(self.matrix, ))
-        thread.start()
-        thread.join()
+        try:
+            fnc(self.matrix)
+        except Exception:
+            log.exception("Module function %s crashed", fnc)
 
     def load_submodules(self):
-        classes = []
+        instances = []
         for name, val in globals().items():
             if isinstance(val, types.ModuleType) and "submodules" in val.__name__:
-                print("Found submodule %s" % val)
-                clsmembers = inspect.getmembers(val, inspect.isclass)
-                classes.append(clsmembers[0][1](self.add_loop, self.rmv_loop, self.add_event))
-        return classes
+                log.info("Found submodule %s", val.__name__)
+                for _, cls in inspect.getmembers(val, inspect.isclass):
+                    if not (issubclass(cls, Submodule) and cls is not Submodule
+                            and cls.__module__ == val.__name__):
+                        continue
+                    try:
+                        instances.append(cls(self.add_loop, self.rmv_loop, self.add_event))
+                    except Exception:
+                        log.exception("Failed to initialise module %s - skipping it", cls.__name__)
+        return instances
 
     def init_submodule_services(self):
         services = []
         for mod in self.submodules:
-            try:
-                thread = threading.Thread(target=mod.service, args=())
-                thread.start()
-                services.append(thread)
-                print("Loaded Service of module: " + str(mod))
-            except AttributeError:
-                pass
-                #print("Module: " + str(mod) + " has no 'service' method.", file=sys.stderr)
+            service = getattr(mod, "service", None)
+            if not callable(service):
+                continue
+            thread = threading.Thread(target=service, daemon=True,
+                                      name=type(mod).__name__ + "-service")
+            thread.start()
+            services.append(thread)
+            log.info("Loaded service of module: %s", type(mod).__name__)
         return services
 
     def add_event(self, priority, display_fnc):
-        id = random.getrandbits(128)
-        qObj = Scheduler.QObject(priority, id, display_fnc)
-        self.event_q.put(qObj)
-        return id
+        return self._add(self.events, priority, display_fnc)
 
     def add_loop(self, priority, display_fnc):
-        id = random.getrandbits(128)
-        qObj = Scheduler.QObject(priority, id, display_fnc)
-        self.loop_q.put(qObj)
+        return self._add(self.loops, priority, display_fnc)
+
+    def _add(self, queue, priority, display_fnc):
+        id = next(self._id_counter)
+        with self._lock:
+            queue.append(QObject(priority, id, display_fnc))
         return id
 
     def rmv_loop(self, id):
-        for obj in self.loop_q.queue:
-            if obj.id == id:
-                self.loop_q.queue.remove(obj)
-                return
-        raise Exception("Cant find ID for loop function!")
+        with self._lock:
+            for obj in self.loops:
+                if obj.id == id:
+                    self.loops.remove(obj)
+                    return
+        raise LookupError("Can't find ID for loop function!")
 
 
 if __name__ == "__main__":
-    Scheduler()
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s %(levelname)s [%(threadName)s] %(message)s")
+    scheduler = Scheduler()
+    try:
+        scheduler.schedule()
+    except KeyboardInterrupt:
+        scheduler.matrix.Clear()
+        log.info("Shutting down.")
