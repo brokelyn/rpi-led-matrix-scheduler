@@ -129,6 +129,16 @@ runtime stop being scheduled. The web server only ever reads and writes `modules
 it never talks to the display process, and it is plain unauthenticated HTTP - meant for a
 trusted home network only.
 
+### Show a module now
+
+Every enabled module that has something to display gets a &#9654; button on its card.
+Pressing it puts that module at the front of the queue: the scheduler finishes the
+animation that is currently running and then displays the requested module. The button
+works through a small `show_request.json` file (written by the web server, consumed and
+deleted by the scheduler), so the two processes still never talk to each other directly.
+Requests older than two minutes are ignored - a press while the scheduler is down does
+not replay after a restart.
+
 ### Module settings
 
 Modules can declare web-editable settings by adding an `OPTIONS` dict to their class:

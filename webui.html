@@ -152,6 +152,33 @@
     text-transform: uppercase;
   }
 
+  /* show-on-display-now button */
+  .play {
+    flex: none;
+    width: 28px; height: 28px;
+    border: 1px solid var(--row-edge);
+    border-radius: 6px;
+    background: linear-gradient(180deg, #171208, #0a0805);
+    color: var(--text-dim);
+    font: inherit;
+    font-size: 9px;
+    padding: 0 0 0 2px;    /* the triangle glyph sits a hair left */
+    cursor: pointer;
+    transition: color .2s, border-color .2s, box-shadow .2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .play:hover { color: var(--amber); border-color: var(--amber-dim); }
+  .play:focus-visible { outline: 1px solid var(--amber); outline-offset: 2px; }
+  .module:not(.on) .play { visibility: hidden; }
+  .play.queued {
+    color: var(--amber);
+    border-color: var(--amber);
+    animation: queued .8s ease 3;
+  }
+  @keyframes queued {
+    50% { box-shadow: 0 0 10px rgba(255, 179, 0, .55); }
+  }
+
   .chev {
     flex: none;
     width: 22px; height: 22px;
@@ -360,6 +387,7 @@
   @media (prefers-reduced-motion: reduce) {
     .module { animation: none; opacity: 1; transform: none; }
     .toggle::before, .drawer, .chev { transition: none; }
+    .play.queued { animation: none; }
   }
 </style>
 </head>
@@ -389,7 +417,7 @@
 
 /* ------------------------------------------------------------------ state */
 
-let modules = [];          // [{name, enabled, options: [{key,label,min,max,step,default,value}]}]
+let modules = [];          // [{name, enabled, showable, options: [{key,label,min,max,step,default,value}]}]
 let inflight = false;      // a POST is running; pause polling
 let lastDrag = 0;          // last slider interaction, pauses polling briefly
 const openSet = new Set(); // module names with an open drawer
@@ -430,6 +458,8 @@ function render() {
         '<span class="led"></span>' +
         '<span class="info"><div class="name"></div>' +
         '<div class="tag">module ' + String(i + 1).padStart(2, "0") + "</div></span>" +
+        (m.showable ? '<button class="play" title="show on the display now"' +
+          ' aria-label="show on the display now">&#9654;</button>' : "") +
         '<button class="chev" aria-label="settings" aria-expanded="' + openSet.has(m.name) + '">&#9662;</button>' +
         '<button class="toggle" role="switch" aria-checked="' + m.enabled + '"' +
         ' aria-label="toggle module"></button>' +
@@ -441,10 +471,17 @@ function render() {
       ev.stopPropagation();
       toggle(m, card);
     });
+    const play = card.querySelector(".play");
+    if (play) {
+      play.addEventListener("click", ev => {
+        ev.stopPropagation();
+        showNow(m, play, card);
+      });
+    }
 
     if (hasOpts) {
       card.querySelector(".head").addEventListener("click", ev => {
-        if (ev.target.closest(".toggle")) return;
+        if (ev.target.closest(".toggle") || ev.target.closest(".play")) return;
         const open = card.classList.toggle("open");
         card.querySelector(".chev").setAttribute("aria-expanded", open);
         open ? openSet.add(m.name) : openSet.delete(m.name);
@@ -537,6 +574,23 @@ async function toggle(m, card) {
     setTimeout(() => card.classList.remove("err"), 400);
   } finally {
     inflight = false;
+  }
+}
+
+async function showNow(m, btn, card) {
+  if (btn.classList.contains("queued")) return;
+  try {
+    const res = await fetch("/api/show", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ module: m.name })
+    });
+    if (!res.ok) throw new Error(res.status);
+    btn.classList.add("queued");
+    setTimeout(() => btn.classList.remove("queued"), 2400);
+  } catch (e) {
+    card.classList.add("err");
+    setTimeout(() => card.classList.remove("err"), 400);
   }
 }
 

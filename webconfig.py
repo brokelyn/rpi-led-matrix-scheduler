@@ -43,9 +43,12 @@ def module_list():
 
     result = []
     for name in sorted(enabled):
-        entry = {'name': name, 'enabled': enabled[name], 'options': []}
-        values = module_config.merge_options(meta.get(name, {}), options.get(name, {}))
-        for key, spec in meta.get(name, {}).items():
+        specs = meta.get(name, {}).get('options', {})
+        entry = {'name': name, 'enabled': enabled[name],
+                 'showable': bool(meta.get(name, {}).get('showable')),
+                 'options': []}
+        values = module_config.merge_options(specs, options.get(name, {}))
+        for key, spec in specs.items():
             entry['options'].append({
                 'key': key,
                 'label': spec.get('label', key),
@@ -88,6 +91,8 @@ class Handler(BaseHTTPRequestHandler):
             self._handle_toggle()
         elif self.path == '/api/option':
             self._handle_option()
+        elif self.path == '/api/show':
+            self._handle_show()
         else:
             self._respond_json(404, {'error': 'not found'})
 
@@ -110,6 +115,26 @@ class Handler(BaseHTTPRequestHandler):
         log.info("%s -> %s", name, 'on' if wanted else 'off')
         self._respond_json(200, {'modules': module_list()})
 
+    def _handle_show(self):
+        try:
+            name = self._read_body()['module']
+        except (ValueError, KeyError, TypeError):
+            self._respond_json(400, {'error': 'invalid request'})
+            return
+
+        enabled, _ = read_conf()
+        meta = read_meta()
+        if name not in enabled or not meta.get(name, {}).get('showable'):
+            self._respond_json(404, {'error': 'module has nothing to display'})
+            return
+        if not enabled[name]:
+            self._respond_json(409, {'error': 'module is disabled'})
+            return
+
+        module_config.request_show(settings.SHOW_REQUEST, name)
+        log.info("show %s", name)
+        self._respond_json(200, {'ok': True})
+
     def _handle_option(self):
         try:
             data = self._read_body()
@@ -121,13 +146,13 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         meta = read_meta()
-        spec = meta.get(name, {}).get(key)
+        spec = meta.get(name, {}).get('options', {}).get(key)
         if spec is None:
             self._respond_json(404, {'error': 'unknown option'})
             return
 
         enabled, options = read_conf()
-        values = module_config.merge_options(meta[name], options.get(name, {}))
+        values = module_config.merge_options(meta[name]['options'], options.get(name, {}))
         values[key] = min(spec['max'], max(spec['min'], value))
         options[name] = values
         module_config.write(settings.MODULES_CONF, enabled, options)

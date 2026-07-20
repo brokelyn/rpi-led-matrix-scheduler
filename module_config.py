@@ -11,8 +11,11 @@ section with one `key = value` line per option. Unknown keys are dropped
 the next time the scheduler rewrites the file.
 """
 import configparser
+import io
+import json
 import os
 import tempfile
+import time
 
 SECTION = 'modules'
 
@@ -56,16 +59,30 @@ def write(path, enabled, options):
         for key, value in options[module].items():
             parser.set(module, key, format_value(value))
 
+    buffer = io.StringIO()
+    parser.write(buffer)
+    atomic_write(path, buffer.getvalue())
+
+
+def atomic_write(path, text):
     directory = os.path.dirname(os.path.abspath(path))
-    fd, tmp = tempfile.mkstemp(dir=directory, prefix='.modules.conf.')
+    fd, tmp = tempfile.mkstemp(dir=directory,
+                               prefix='.' + os.path.basename(path) + '.')
     try:
         with os.fdopen(fd, 'w') as f:
-            parser.write(f)
+            f.write(text)
         os.chmod(tmp, 0o644)
         os.replace(tmp, path)
     except BaseException:
         os.unlink(tmp)
         raise
+
+
+def request_show(path, name):
+    """Ask the scheduler to display module `name` as soon as the current
+    animation is done. The timestamp lets the scheduler drop requests
+    that were written while it was not running."""
+    atomic_write(path, json.dumps({'module': name, 'time': time.time()}))
 
 
 def format_value(value):

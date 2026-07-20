@@ -54,10 +54,10 @@ class Scheduler:
 
         enabled_conf, self.module_options = module_config.ensure(
             settings.MODULES_CONF, self.option_specs)
-        self.write_meta()
-        self._chown_to_sudo_user(settings.MODULES_CONF, settings.MODULES_META)
         self._conf_mtime = self._conf_stat()
-        self.apply_config(enabled_conf)
+        self._last_meta = None
+        self.apply_config(enabled_conf)  # also writes the meta file
+        self._chown_to_sudo_user(settings.MODULES_CONF, settings.MODULES_META)
 
         settings.LOADED_MODULES = len(self.instances)
         log.info("Done loading modules! %d of %d modules are enabled.",
@@ -71,6 +71,7 @@ class Scheduler:
     def schedule(self):
         while True:
             self.check_config()
+            self.check_show_request()
             self.next()
 
     def next(self):
@@ -120,6 +121,9 @@ class Scheduler:
                 self.enable_module(name)
             else:
                 self.disable_module(name)
+        # instantiating modules may have registered new loops, which
+        # decides what the web interface may offer a "show now" button for
+        self.write_meta()
 
     def enable_module(self, name):
         with self._lock:
@@ -220,11 +224,49 @@ class Scheduler:
             for id, (_, fnc) in list(regs.items()):
                 regs[id] = (priority, fnc)
 
-    def write_meta(self):
-        meta = {name: spec for name, spec in self.option_specs.items() if spec}
+    def check_show_request(self):
+        if not os.path.exists(settings.SHOW_REQUEST):
+            return
         try:
-            with open(settings.MODULES_META, 'w') as f:
-                json.dump(meta, f, indent=2)
+            with open(settings.SHOW_REQUEST) as f:
+                request = json.load(f)
+        except (OSError, ValueError):
+            request = {}
+        try:
+            os.remove(settings.SHOW_REQUEST)
+        except OSError:
+            log.exception("Could not remove %s", settings.SHOW_REQUEST)
+
+        name = request.get('module') if isinstance(request, dict) else None
+        try:
+            age = time.time() - float(request.get('time'))
+        except (TypeError, ValueError):
+            age = None
+        if name is None or age is None or age > 120:
+            log.info("Ignoring stale/invalid show request: %s", request)
+            return
+
+        with self._lock:
+            regs = self.loop_regs.get(name, {})
+            if name not in self.enabled or not regs:
+                log.info("Show request for %s ignored - disabled or nothing to display", name)
+                return
+            for _, fnc in regs.values():
+                # priority 0 beats every regular event, so it runs next
+                self.events.append(QObject(0, next(self._id_counter), fnc, name))
+        log.info("Show request: %s displays next", name)
+
+    def write_meta(self):
+        with self._lock:
+            showable = {name for name, regs in self.loop_regs.items() if regs}
+        meta = {name: {'options': spec, 'showable': name in showable}
+                for name, spec in self.option_specs.items()
+                if spec or name in showable}
+        if meta == self._last_meta:
+            return
+        self._last_meta = meta
+        try:
+            module_config.atomic_write(settings.MODULES_META, json.dumps(meta, indent=2))
         except OSError:
             log.exception("Could not write %s", settings.MODULES_META)
 

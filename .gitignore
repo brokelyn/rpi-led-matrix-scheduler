@@ -126,3 +126,4 @@ dmypy.json
 ._.DS_Store
 modules.conf
 modules_meta.json
+show_request.json
