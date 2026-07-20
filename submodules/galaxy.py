@@ -1,6 +1,7 @@
 import math
 import time
 import random as rnd
+from collections import deque
 from submodule import Submodule
 from rgbmatrix import graphics
 
@@ -19,7 +20,7 @@ class body:
         self.name = name
         self.color = color
         self.is_fix = is_fix
-        self.his = []
+        self.his = deque(maxlen=16)
 
 
 def calculate_single_body_acceleration(bodies, body_index):
@@ -50,8 +51,6 @@ def update_location(bodies, time_step = 1):
     for target_body in bodies:
         if not target_body.is_fix:
             target_body.his.append(point(target_body.location.x, target_body.location.y))  # just for tail
-            if len(target_body.his) > 16:
-                target_body.his = target_body.his[1:]
             target_body.location.x += target_body.velocity.x * time_step
             target_body.location.y += target_body.velocity.y * time_step
 
@@ -72,7 +71,7 @@ class Galaxy(Submodule):
         add_loop(4, self.display_galaxy)
 
     def display_galaxy(self, matrix):
-        swap = matrix.CreateFrameCanvas()
+        swap = self.get_canvas(matrix)
         body_mass = rnd.random()
         sun_mass = rnd.random() * 2 + 1
 
@@ -97,18 +96,21 @@ class Galaxy(Submodule):
 
         ]
 
+        frame_time = 0.02
         for i in range(800):
+            frame_start = time.perf_counter()
             compute_gravity_step(bodies, time_step=1)
             swap.Clear()
 
             for obj in bodies:
                 swap.SetPixel(obj.location.x, obj.location.y, obj.color.red, obj.color.green, obj.color.blue)
-                for i, his in enumerate(reversed(obj.his)):
+                if obj.his:
                     reduce_step = 255 / len(obj.his)
-                    r = max(0, obj.color.red - (i * reduce_step))
-                    g = max(0, obj.color.green - (i * reduce_step))
-                    b = max(0, obj.color.blue - (i * reduce_step))
-                    swap.SetPixel(his.x, his.y, r, g, b)
+                    for tail_index, his in enumerate(reversed(obj.his)):
+                        r = max(0, obj.color.red - (tail_index * reduce_step))
+                        g = max(0, obj.color.green - (tail_index * reduce_step))
+                        b = max(0, obj.color.blue - (tail_index * reduce_step))
+                        swap.SetPixel(his.x, his.y, r, g, b)
 
-            matrix.SwapOnVSync(swap)
-            time.sleep(0.02)
+            swap = self.swap_canvas(matrix, swap)
+            time.sleep(max(0.0, frame_time - (time.perf_counter() - frame_start)))
