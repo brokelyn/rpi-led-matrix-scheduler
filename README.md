@@ -5,15 +5,15 @@ Instead of having a main file which calls all the different programmed effects, 
 each python file in the submodule folder. Each submodule can decide how often and how long its want to display 
 its content. Therefore creating new animations or effects is just creating a new submodule.
 
-This projects is designed to run on a raspberry pi. Therefore each part of the steps
-is specific for the the pi and may not work on other devices or operating systems.
+This project is designed to run on a raspberry pi. Therefore each part of the steps
+is specific for the pi and may not work on other devices or operating systems.
 
 ## Structure of the project
 
 In the top folder there are classes which will schedule the different submodule.
 
 - the `init.py` file is used to define the different led matrix options. For further information see [rpi-rgb-led-matrix]('https://github.com/hzeller/rpi-rgb-led-matrix')
-- the `settings.yp` file contains different constants required for this application. See section **Installing / Usage** for more information
+- the `settings.py` file contains different constants required for this application. See section **Installing / Usage** for more information
 - the `submodule.py` file is the super class of each submodule, which saves and provides the different methods for scheduling a submodule
 - the `scheduler.py` file will load all submodules and schedule them accordingly to their requests
 
@@ -23,7 +23,7 @@ In the `submodules` folder are the different submodules
         - by calling this method an effect of this module will be repeatedly executed
         - the first parameter is the priority number. The higher the more rarely the method is executed
         - the second parameter will be the function which will be called repeatedly
-        - the method will return a `function id` which can be used to delte this loop later
+        - the method will return a `function id` which can be used to delete this loop later
     2. parameter `rmv_loop`
         - this method will remove a previous added loop function
         - it take the `function id` as parameter to remove the loop
@@ -77,7 +77,7 @@ perform api calls. This device ips are defined as environment variables.
 In the `settings` file their are constants pointing on the required devices.
 
 1. Set up the environment variable
-    - Edit the profile file by `sudo vim /etc/eviroment`
+    - Edit the profile file by `sudo vim /etc/environment`
     - A variable can be added by inserting `export <enviroment variable name>=<value>`
     - For example `export MY_IP=127.0.0.1`
     - The new environment variables should apply after a reboot
@@ -101,7 +101,8 @@ In the `settings` file their are constants pointing on the required devices.
     
 4. Environment variables for modules
     - every other variable in the `settings` file is optional and is required by the different modules
-    - when not using any of the modules the variables can be set to `None` or be commented out
+    - unset variables default to `None`; a module that fails to initialise because of a missing
+      variable is skipped by the scheduler instead of crashing the application
     - when using modules requiring the variables, set them accordingly to the **Setting Environment Variables**
     
 5. Starting the application
