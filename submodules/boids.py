@@ -14,6 +14,9 @@ speed_limit = 1.1
 height = 32
 width = 64
 
+visual_range_sq = visual_range ** 2
+avoid_range_sq = 2 ** 2
+
 
 class point:
     def __init__(self, x, y):
@@ -26,58 +29,51 @@ class body:
         self.location = location
         self.velocity = velocity
         self.color = color
-        self.his = []
 
 
-def point_distance(p1, p2):
-    return math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2)
-
-
-def flyTowardsCenter(bodies):
+def apply_flocking(bodies):
+    # one pass over all pairs replaces the former flyTowardsCenter,
+    # avoidOthers and matchVelocity loops: one squared-distance check
+    # per pair instead of three sqrt calls
     for body in bodies:
-        number = 0
-        center = point(0, 0)
+        center_x = center_y = 0.0
+        center_n = 0
+        dodge_x = dodge_y = 0.0
+        match_x = match_y = 0.0
+        match_n = 0
+
         for other in bodies:
-            if point_distance(body.location, other.location) < visual_range:
-                center.x += other.location.x
-                center.y += other.location.y
-                number += 1
-        if number > 0:
-            center.x = center.x / number
-            center.y = center.y / number
+            dx = other.location.x - body.location.x
+            dy = other.location.y - body.location.y
+            dist_sq = dx * dx + dy * dy
 
-            body.velocity.x += (center.x - body.location.x) * centering_factor
-            body.velocity.y += (center.y - body.location.y) * centering_factor
+            if dist_sq < visual_range_sq:
+                center_x += other.location.x
+                center_y += other.location.y
+                center_n += 1
 
+            if other is body:
+                continue
 
-def avoidOthers(bodies):
-    for body_index, body in enumerate(bodies):
-        dodge = point(0, 0)
-        for other in [x for i, x in enumerate(bodies) if i != body_index]:
-            distance = point_distance(body.location, other.location)
-            if 2 > distance:
-                dodge.x -= (other.location.x - body.location.x)
-                dodge.y -= (other.location.y - body.location.y)
+            if dist_sq < avoid_range_sq:
+                dodge_x -= dx
+                dodge_y -= dy
 
-        body.velocity.x += dodge.x * avoid_factor
-        body.velocity.y += dodge.y * avoid_factor
+            if dist_sq < visual_range_sq:
+                match_x += other.velocity.x
+                match_y += other.velocity.y
+                match_n += 1
 
+        if center_n > 0:
+            body.velocity.x += (center_x / center_n - body.location.x) * centering_factor
+            body.velocity.y += (center_y / center_n - body.location.y) * centering_factor
 
-def matchVelocity(bodies):
-    for body_index, body in enumerate(bodies):
-        match_v = point(0, 0)
-        number = 0
-        for other in [x for i, x in enumerate(bodies) if i != body_index]:
-            if point_distance(body.location, other.location) < visual_range:
-                match_v.x += other.velocity.x
-                match_v.y += other.velocity.y
-                number += 1
-        if number > 0:
-            match_v.x = match_v.x / number
-            match_v.y = match_v.y / number
+        body.velocity.x += dodge_x * avoid_factor
+        body.velocity.y += dodge_y * avoid_factor
 
-            body.velocity.x += (match_v.x - body.velocity.x) * matching_factor
-            body.velocity.y += (match_v.y - body.velocity.y) * matching_factor
+        if match_n > 0:
+            body.velocity.x += (match_x / match_n - body.velocity.x) * matching_factor
+            body.velocity.y += (match_y / match_n - body.velocity.y) * matching_factor
 
 
 def limitSpeed(bodies):
@@ -112,26 +108,19 @@ def colorBySpeed(bodies):
     for body in bodies:
         red = min(255, int(color_step_size * abs(body.velocity.x)) + 20)
         blue = min(255, int(color_step_size * abs(body.velocity.y)) + 20)
-        green = 20#color_step_size * body.velocity.y
+        green = 20
 
         body.color = graphics.Color(red, green, blue)
 
 
-
 def update_location(bodies):
     for target_body in bodies:
-        target_body.his.append(point(target_body.location.x, target_body.location.y))  # just for tail
-        if len(target_body.his) > 16:
-            target_body.his = target_body.his[1:]
-
         target_body.location.x += target_body.velocity.x
         target_body.location.y += target_body.velocity.y
 
 
 def compute_step(bodies):
-    flyTowardsCenter(bodies)
-    avoidOthers(bodies)
-    matchVelocity(bodies)
+    apply_flocking(bodies)
     limitSpeed(bodies)
     keepWithinBounds(bodies)
 
@@ -151,19 +140,20 @@ class Boids(Submodule):
         add_loop(4.5, self.display_swarm)
 
     def display_swarm(self, matrix):
-        swap = matrix.CreateFrameCanvas()
+        swap = self.get_canvas(matrix)
 
-        bodies = []
+        bodies = [body(rnd_point(1, 63, 1, 31), rnd_point(-1, 0, -1, 0)) for _ in range(25)]
 
-        for _ in range(25):
-            bodies.append(body(rnd_point(1, 63, 1, 31), rnd_point(-1, 0, -1, 0)))
-
-        for i in range(650):
+        frame_time = 0.015
+        for _ in range(650):
+            frame_start = time.perf_counter()
             compute_step(bodies)
-            swap.Clear()
 
+            swap.Clear()
             for obj in bodies:
                 swap.SetPixel(obj.location.x, obj.location.y, obj.color.red, obj.color.green, obj.color.blue)
 
-            matrix.SwapOnVSync(swap)
-            time.sleep(0.01)
+            swap = self.swap_canvas(matrix, swap)
+            # sleep only the remainder of the frame budget so system load
+            # doesn't slow the animation down
+            time.sleep(max(0.0, frame_time - (time.perf_counter() - frame_start)))
