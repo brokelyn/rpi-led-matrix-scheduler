@@ -23,7 +23,10 @@ def init_leds():
     options.led_rgb_sequence = 'RGB'
     options.pixel_mapper_config = ''
     options.panel_type = ''
-    options.limit_refresh_rate_hz = 0  # no fps limit decreases the cpu usage
+    # 0 = unlimited: the refresh thread then uses as much cpu as it can get.
+    # capping it (measure with show_refresh_rate, then set ~10-20% below the
+    # observed rate, e.g. 150) lowers cpu load and keeps animations steady
+    options.limit_refresh_rate_hz = 0
     options.show_refresh_rate = 0
     options.gpio_slowdown = 4
     options.disable_hardware_pulsing = False
