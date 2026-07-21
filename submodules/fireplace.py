@@ -2,17 +2,20 @@ import time
 import random
 from submodule import Submodule
 
-# low heat is transparent (the black background shows), the hottest values are white
+# heat 15..5 is fire fading from white-hot to a dim deep red, heat 4..1 is
+# what is left of it: faint gray smoke. 0 is the black background.
 PALETTE = [
     None,
-    None, None, (105, 22, 5), (135, 28, 6),
-    (165, 38, 6), (190, 52, 8), (210, 68, 10), (225, 88, 12),
-    (235, 108, 16), (243, 132, 20), (248, 158, 32), (252, 184, 48),
-    (253, 208, 78), (254, 228, 120), (255, 246, 180),
+    (12, 12, 13), (20, 20, 21), (30, 29, 28), (40, 38, 35),
+    (62, 14, 4), (112, 24, 5), (148, 34, 6), (182, 50, 8),
+    (208, 68, 10), (226, 90, 14), (240, 116, 20), (248, 146, 30),
+    (252, 178, 48), (254, 212, 88), (255, 244, 160),
 ]
 MAX_HEAT = len(PALETTE) - 1
+SMOKE_MAX = 4
 
-DECAY = (0, 0, 1, 1, 1, 1, 1, 2, 2, 3)  # avg 1.2 heat loss per row -> tall flames
+DECAY = (0, 0, 1, 1, 1, 1, 1, 2, 2, 3)   # avg 1.2 heat loss per row -> tall flames
+SMOKE_DECAY = (0, 0, 1, 1, 1, 2)          # smoke cools slowly and lingers above
 
 # each torch runs its own small fire grid, centered over the torch head
 FIRE_W = 13
@@ -92,12 +95,21 @@ class Fireplace(Submodule):
             seed_max = round(SEED_MAX[x] * ember_scale)
             heat[height - 1][x] = random.randint(max(0, seed_max - 4), seed_max)
 
-        # classic doom fire: heat rises, drifts sideways and cools down
+        # classic doom fire: heat rises, drifts sideways and cools down.
+        # once a cell drops out of the fire range it lives on as smoke,
+        # which cools much slower and so keeps drifting up a few rows
+        # past the point where the flame has faded out
         for y in range(height - 1):
+            row = heat[y]
+            below = heat[y + 1]
             for x in range(FIRE_W):
                 src = min(FIRE_W - 1, max(0, x + random.choice(drift)))
-                cooling = random.choice(DECAY) + EDGE_COOLING[x] + extra_cooling
-                heat[y][x] = min(MAX_HEAT, max(0, heat[y + 1][src] - cooling))
+                value = below[src]
+                if value > SMOKE_MAX:
+                    cooling = random.choice(DECAY) + EDGE_COOLING[x] + extra_cooling
+                else:
+                    cooling = random.choice(SMOKE_DECAY)
+                row[x] = min(MAX_HEAT, max(0, value - cooling))
 
     def display_fireplace(self, matrix):
         swap = self.get_canvas(matrix)
