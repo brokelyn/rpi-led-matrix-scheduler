@@ -22,19 +22,49 @@ DECAY = (0, 1, 1, 1, 1, 1, 2, 2)          # avg 1.1 heat loss per row -> tall fl
 SMOKE_DECAY = (0, 0, 1, 1, 1, 2)          # smoke cools slowly and lingers above
 FLICKER = 3                               # how far the seed row dips below full heat
 
-# each torch runs its own small fire grid, centered over the torch head
-FIRE_W = 13
-_CENTER = (FIRE_W - 1) / 2
+# each torch runs its own small fire grid, centered over the torch head. The
+# grid is as wide as the fire size setting; everything derived from that width
+# is built once per size and cached, since it only changes when the slider does.
+BASE_W = 13     # the width the tables above are tuned for
+_grids = {}
 
-# bell seed: a flat-topped core of full heat over the torch head falling off to
-# nothing at the grid edges, so the flame starts as a fat white-hot tongue and
-# only widens further by drifting upwards
-SEED_MAX = []
-EDGE_COOLING = []
-for _x in range(FIRE_W):
-    _d = abs(_x - _CENTER) / 4.0
-    SEED_MAX.append(round(MAX_HEAT * max(0.0, 1 - _d ** 3)))
-    EDGE_COOLING.append(1 if _d > 1 else 0)
+
+def stretch(decay, scale):
+    """A decay table that spends the same total heat over `scale` times as many
+    rows: idle rows appear for a bigger fire, steeper losses for a smaller one.
+    Without this a wider fire would only get fatter, never taller.
+
+    The remainder is carried between entries rather than rounded away, so the
+    table keeps the ups and downs that make the tips flicker - and at scale 1
+    it comes back out exactly as it went in."""
+    table, carry = [], 0.0
+    for value in decay:
+        carry += value / scale
+        step = int(carry)
+        carry -= step
+        table.append(step)
+    return tuple(table)
+
+
+def fire_grid(width):
+    """-> (seed heat per column, edge cooling per column, decay, smoke decay)
+
+    Bell seed: a flat-topped core of full heat over the torch head falling off
+    to nothing at the grid edges, so the flame starts as a fat white-hot tongue
+    and only widens further by drifting upwards."""
+    if width not in _grids:
+        center = (width - 1) / 2
+        seed_max, edge_cooling = [], []
+        for x in range(width):
+            # the bell keeps the same share of the grid at every size
+            d = abs(x - center) / (width / 3.25)
+            seed_max.append(round(MAX_HEAT * max(0.0, 1 - d ** 3)))
+            edge_cooling.append(1 if d > 1 else 0)
+        scale = width / BASE_W
+        _grids[width] = (seed_max, edge_cooling,
+                         stretch(DECAY, scale), stretch(SMOKE_DECAY, scale))
+    return _grids[width]
+
 
 WOOD = (96, 56, 18)
 WRAP = (156, 100, 36)   # the cloth-wrapped head the flame sits on
@@ -42,11 +72,14 @@ WRAP = (156, 100, 36)   # the cloth-wrapped head the flame sits on
 
 class _Torch:
 
-    def __init__(self, base_x, tip_x, tip_y, fire_top, drift):
+    def __init__(self, base_x, tip_x, tip_y, fire_top, drift, width):
         self.tip_y = tip_y
         self.drift = drift
         self.height = tip_y - fire_top + 1
-        self.left = tip_x - FIRE_W // 2
+        self.width = width
+        self.left = tip_x - width // 2
+        (self.seed_max, self.edge_cooling,
+         self.decay, self.smoke_decay) = fire_grid(width)
 
         # 2 px wide stick from the bottom edge up to the tip; the top two
         # rows are the brighter wrapped head
@@ -61,19 +94,20 @@ class _Torch:
 
 # drift picks the source cell below (x + drift), so extra +1 entries make the
 # flame lean left and extra -1 entries make it lean right - matching the tilt
-def build_torches(spacing, height):
+def build_torches(spacing, height, size):
     """spacing: outer tip distance from the center, height: how far the
-    center tip sits above the bottom edge. The outer torches sit two rows
-    lower and lean outwards by 3 px over their stick."""
+    center tip sits above the bottom edge, size: fire grid width. The outer
+    torches sit two rows lower and lean outwards by 3 px over their stick."""
     center_tip = 31 - height
     side_tip = min(29, center_tip + 2)
+    rows = size / BASE_W    # a bigger fire needs a taller grid to rise in
     return [
         _Torch(34 - spacing, 31 - spacing, side_tip,          # left, leaning outwards
-               max(1, side_tip - 17), (-1, 0, 0, 1, 1)),
+               max(1, side_tip - round(17 * rows)), (-1, 0, 0, 1, 1), size),
         _Torch(31, 31, center_tip,                            # center, upright and taller
-               max(1, center_tip - 19), (-1, 0, 0, 0, 1)),
+               max(1, center_tip - round(19 * rows)), (-1, 0, 0, 0, 1), size),
         _Torch(28 + spacing, 31 + spacing, side_tip,          # right, leaning outwards
-               max(1, side_tip - 17), (-1, -1, 0, 0, 1)),
+               max(1, side_tip - round(17 * rows)), (-1, -1, 0, 0, 1), size),
     ]
 
 
@@ -83,6 +117,7 @@ class Fireplace(Submodule):
         'priority': {'label': 'Priority', 'default': 4, 'min': 1.5, 'max': 10, 'step': 0.5},
         'embers':   {'label': 'Ember heat %', 'default': 100, 'min': 50, 'max': 100, 'step': 5},
         'flames':   {'label': 'Flame height', 'default': 3, 'min': 1, 'max': 4, 'step': 1},
+        'size':     {'label': 'Fire size px', 'default': 13, 'min': 7, 'max': 21, 'step': 2},
         'spacing':  {'label': 'Spacing px', 'default': 10, 'min': 4, 'max': 22, 'step': 1},
         'height':   {'label': 'Height px', 'default': 8, 'min': 4, 'max': 14, 'step': 1},
         'duration': {'label': 'Duration s', 'default': 17, 'min': 5, 'max': 120, 'step': 1},
@@ -94,11 +129,17 @@ class Fireplace(Submodule):
         add_loop(self.options['priority'], self.display_fireplace)
 
     @staticmethod
-    def step_fire(heat, drift, ember_scale, extra_cooling):
+    def step_fire(heat, torch, ember_scale, extra_cooling):
+        # the tables are read once per cell, so keep them in locals
+        width, drift = torch.width, torch.drift
+        decay, smoke_decay = torch.decay, torch.smoke_decay
+        seed_heat, edge_cooling = torch.seed_max, torch.edge_cooling
+        last = width - 1
+
         # seed the bottom row (the torch head) with flickering heat
         height = len(heat)
-        for x in range(FIRE_W):
-            seed_max = round(SEED_MAX[x] * ember_scale)
+        for x in range(width):
+            seed_max = round(seed_heat[x] * ember_scale)
             heat[height - 1][x] = random.randint(max(0, seed_max - FLICKER), seed_max)
 
         # classic doom fire: heat rises, drifts sideways and cools down.
@@ -108,17 +149,17 @@ class Fireplace(Submodule):
         for y in range(height - 1):
             row = heat[y]
             below = heat[y + 1]
-            for x in range(FIRE_W):
-                src = min(FIRE_W - 1, max(0, x + random.choice(drift)))
+            for x in range(width):
+                src = min(last, max(0, x + random.choice(drift)))
                 # take the source cell blurred with its neighbours: that keeps
                 # the flame one coherent body with soft edges instead of
                 # speckle, so the color really does follow the height
                 value = (below[max(0, src - 1)] + 2 * below[src]
-                         + below[min(FIRE_W - 1, src + 1)] + 2) // 4
+                         + below[min(last, src + 1)] + 2) // 4
                 if value > SMOKE_MAX:
-                    cooling = random.choice(DECAY) + EDGE_COOLING[x] + extra_cooling
+                    cooling = random.choice(decay) + edge_cooling[x] + extra_cooling
                 else:
-                    cooling = random.choice(SMOKE_DECAY)
+                    cooling = random.choice(smoke_decay)
                 row[x] = min(MAX_HEAT, max(0, value - cooling))
 
     def display_fireplace(self, matrix):
@@ -133,18 +174,18 @@ class Fireplace(Submodule):
             # flames maps to cooling: taller flames cool slower on the way up
             extra_cooling = 3 - int(opts['flames'])
 
-            # rebuild the torches when spacing/height change, so those
+            # rebuild the torches when spacing/height/size change, so those
             # sliders apply live like the other fire settings
-            key = (int(opts['spacing']), int(opts['height']))
+            key = (int(opts['spacing']), int(opts['height']), int(opts['size']))
             if key != geometry:
                 geometry = key
                 torches = build_torches(*key)
-                heats = [[[0] * FIRE_W for _ in range(torch.height)]
+                heats = [[[0] * torch.width for _ in range(torch.height)]
                          for torch in torches]
 
             swap.Clear()
             for torch, heat in zip(torches, heats):
-                Fireplace.step_fire(heat, torch.drift, ember_scale, extra_cooling)
+                Fireplace.step_fire(heat, torch, ember_scale, extra_cooling)
 
                 for x, y, (r, g, b) in torch.stick:
                     swap.SetPixel(x, y, r, g, b)
