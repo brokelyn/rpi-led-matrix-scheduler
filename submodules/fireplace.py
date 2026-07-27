@@ -2,32 +2,38 @@ import time
 import random
 from submodule import Submodule
 
-# heat 15..5 is fire fading from white-hot to a dim deep red, heat 4..1 is
-# what is left of it: faint gray smoke. 0 is the black background.
+# heat 15..5 is fire, ramping white-hot -> yellow -> orange -> red -> a dim
+# ember glow, heat 4..1 is what is left of it: the last levels desaturate from
+# a warm ash tone into faint gray smoke. 0 is the black background.
 PALETTE = [
     None,
-    (12, 12, 13), (20, 20, 21), (30, 29, 28), (40, 38, 35),
-    (62, 14, 4), (112, 24, 5), (148, 34, 6), (182, 50, 8),
-    (208, 68, 10), (226, 90, 14), (240, 116, 20), (248, 146, 30),
-    (252, 178, 48), (254, 212, 88), (255, 244, 160),
+    (11, 11, 12), (18, 17, 17), (28, 24, 22), (38, 27, 21),
+    (70, 14, 4), (104, 22, 5), (142, 34, 6), (176, 56, 8),
+    (204, 82, 10), (226, 108, 14), (242, 138, 24), (252, 168, 40),
+    (255, 200, 80), (255, 230, 150), (255, 250, 220),
 ]
 MAX_HEAT = len(PALETTE) - 1
 SMOKE_MAX = 4
 
-DECAY = (0, 0, 1, 1, 1, 1, 1, 2, 2, 3)   # avg 1.2 heat loss per row -> tall flames
+# a near-constant loss per row is what makes the color track the height: the
+# flame runs through white, yellow, orange and red in the same order every time
+# instead of scattering hot pixels all the way up to the tip
+DECAY = (0, 1, 1, 1, 1, 1, 2, 2)          # avg 1.1 heat loss per row -> tall flames
 SMOKE_DECAY = (0, 0, 1, 1, 1, 2)          # smoke cools slowly and lingers above
+FLICKER = 3                               # how far the seed row dips below full heat
 
 # each torch runs its own small fire grid, centered over the torch head
 FIRE_W = 13
 _CENTER = (FIRE_W - 1) / 2
 
-# bell seed: full heat over the torch head, nothing at the grid edges, so the
-# flame starts as a fat tongue and only widens further by drifting upwards
+# bell seed: a flat-topped core of full heat over the torch head falling off to
+# nothing at the grid edges, so the flame starts as a fat white-hot tongue and
+# only widens further by drifting upwards
 SEED_MAX = []
 EDGE_COOLING = []
 for _x in range(FIRE_W):
     _d = abs(_x - _CENTER) / 4.0
-    SEED_MAX.append(round(MAX_HEAT * max(0.0, 1 - _d * _d)))
+    SEED_MAX.append(round(MAX_HEAT * max(0.0, 1 - _d ** 3)))
     EDGE_COOLING.append(1 if _d > 1 else 0)
 
 WOOD = (96, 56, 18)
@@ -93,7 +99,7 @@ class Fireplace(Submodule):
         height = len(heat)
         for x in range(FIRE_W):
             seed_max = round(SEED_MAX[x] * ember_scale)
-            heat[height - 1][x] = random.randint(max(0, seed_max - 4), seed_max)
+            heat[height - 1][x] = random.randint(max(0, seed_max - FLICKER), seed_max)
 
         # classic doom fire: heat rises, drifts sideways and cools down.
         # once a cell drops out of the fire range it lives on as smoke,
@@ -104,7 +110,11 @@ class Fireplace(Submodule):
             below = heat[y + 1]
             for x in range(FIRE_W):
                 src = min(FIRE_W - 1, max(0, x + random.choice(drift)))
-                value = below[src]
+                # take the source cell blurred with its neighbours: that keeps
+                # the flame one coherent body with soft edges instead of
+                # speckle, so the color really does follow the height
+                value = (below[max(0, src - 1)] + 2 * below[src]
+                         + below[min(FIRE_W - 1, src + 1)] + 2) // 4
                 if value > SMOKE_MAX:
                     cooling = random.choice(DECAY) + EDGE_COOLING[x] + extra_cooling
                 else:
